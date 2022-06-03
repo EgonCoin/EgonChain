@@ -39,7 +39,7 @@ source ~/.profile
 
 Run install script
 ```
-cd egoncoin && chmod +x install-Ubuntu.sh && ./install-Ubuntu.sh
+cd EgonChain && chmod +x install_Ubuntu.sh && ./install_Ubuntu.sh
 ```
 
 
