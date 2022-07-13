@@ -1,13 +1,13 @@
-## EGC
+## EGON
 
-Official EGC Golang Client based on the go-ethereum.
+Official EGON Golang Client based on the go-ethereum.
 
 
 ## Features
 - Ethereum compatible,but low gas fee.
 - high performance with 2s blocktime.
 - Proof of Staked Authority(PoSA) consensus algorithm with maximum 51 validators.
-- `EGC` run as `native token` and `gas` on EGC network.
+- `EGON` run as `native token` and `gas` on EGON network.
 
 ## Building the source
 
@@ -22,12 +22,12 @@ make geth
 
 ## Executables
 
-The EGC project comes with several wrappers/executables found in the `cmd`
+The EGON project comes with several wrappers/executables found in the `cmd`
 directory.
 
 |    Command    | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | :-----------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|  **`geth`**   | Our main EGC CLI client. It is the entry point into the EGC network (main-, test- or private net), capable of running as a full node (default), archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the EGC network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `geth --help` and the [CLI page](https://geth.ethereum.org/docs/interface/command-line-options) for command line options.          | |
+|  **`geth`**   | Our main EGON CLI client. It is the entry point into the EGON network (main-, test- or private net), capable of running as a full node (default), archive node (retaining all historical state) or a light node (retrieving data live). It can be used by other processes as a gateway into the EGON network via JSON RPC endpoints exposed on top of HTTP, WebSocket and/or IPC transports. `geth --help` and the [CLI page](https://geth.ethereum.org/docs/interface/command-line-options) for command line options.          | |
 
 ## Running `geth`
 
@@ -38,7 +38,7 @@ on how you can run your own `geth` instance.
 
 ### Full node on the main network
 
-By far the most common scenario is people wanting to simply interact with the EGC
+By far the most common scenario is people wanting to simply interact with the EGON
 network: create accounts; transfer funds; deploy and interact with contracts. For this
 particular use-case the user doesn't care about years-old historical data, so we can
 fast-sync quickly to the current state of the network. To do so:
@@ -50,7 +50,7 @@ $ geth console
 This command will:
  * Start `geth` in fast sync mode (default, can be changed with the `--syncmode` flag),
    causing it to download more data in exchange for avoiding processing the entire history
-   of the EGC network, which is very CPU intensive.
+   of the EGON network, which is very CPU intensive.
  * Start up `geth`'s built-in interactive [JavaScript console](https://geth.ethereum.org/docs/interface/javascript-console),
    (via the trailing `console` subcommand) through which you can invoke all official [`web3` methods](https://web3js.readthedocs.io/en/)
    as well as `geth`'s own [management APIs](https://geth.ethereum.org/docs/rpc/server).
@@ -59,7 +59,7 @@ This command will:
 
 ### Full node on the test network
 
-EGC supports connecting to the official proof-of-staked-authority based test network.
+EGON supports connecting to the official proof-of-staked-authority based test network.
 
 ```shell
 $ geth --testnet console
@@ -87,7 +87,7 @@ $ geth --your-favourite-flags dumpconfig
 ### Programmatically interfacing `geth` nodes
 
 As a developer, sooner rather than later you'll want to start interacting with `geth` and the
-EGC network via your own programs and not manually through the console. To aid
+EGON network via your own programs and not manually through the console. To aid
 this, `geth` has built-in support for a JSON-RPC based APIs ([standard APIs](https://eth.wiki/json-rpc/API)
 and [`geth` specific APIs](https://geth.ethereum.org/docs/rpc/server)).
 These can be exposed via HTTP, WebSockets and IPC (UNIX sockets on UNIX based
@@ -121,7 +121,7 @@ can reuse the same connection for multiple requests!
 
 **Note: Please understand the security implications of opening up an HTTP/WS based
 transport before doing so! Hackers on the internet are actively trying to subvert
-EGC nodes with exposed APIs! Further, all browser tabs can access locally
+EGON nodes with exposed APIs! Further, all browser tabs can access locally
 running web servers, so malicious web pages could try to subvert locally available
 APIs!**
 
@@ -130,7 +130,7 @@ APIs!**
 Thank you for considering to help out with the source code! We welcome contributions
 from anyone on the internet, and are grateful for even the smallest of fixes!
 
-If you'd like to contribute to EGC, please fork, fix, commit and send a pull request
+If you'd like to contribute to EGON, please fork, fix, commit and send a pull request
 for the maintainers to review and merge into the main code base.
 
 Please make sure your contributions adhere to our coding guidelines:
@@ -145,10 +145,10 @@ Please make sure your contributions adhere to our coding guidelines:
 
 ## License
 
-The EGC library (i.e. all code outside of the `cmd` directory) is licensed under the
+The EGON library (i.e. all code outside of the `cmd` directory) is licensed under the
 [GNU Lesser General Public License v3.0](https://www.gnu.org/licenses/lgpl-3.0.en.html),
 also included in our repository in the `COPYING.LESSER` file.
 
-The EGC binaries (i.e. all code inside of the `cmd` directory) is licensed under the
+The EGON binaries (i.e. all code inside of the `cmd` directory) is licensed under the
 [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html), also
 included in our repository in the `COPYING` file.

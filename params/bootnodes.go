@@ -19,16 +19,16 @@ package params
 import "github.com/ethereum/go-ethereum/common"
 
 // MainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
-// the main EGC network.
+// the main EGON network.
 var MainnetBootnodes = []string{
-	"",  // egc-mainnet-node-boot-01
-	"",  //egc-mainnet-node-boot-02
+	"",  // egon-mainnet-node-boot-01
+	"",  //egon-mainnet-node-boot-02
 }
 
 // TestnetBootnodes are the enode URLs of the P2P bootstrap nodes running on the test network.
 var TestnetBootnodes = []string{
-	"", // egc-testnet-node-boot-01
-	"",  // egc-testnet-node-boot-02
+	"", // egon-testnet-node-boot-01
+	"",  // egon-testnet-node-boot-02
 }
 
 var V5Bootnodes []string
