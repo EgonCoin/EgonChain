@@ -25,9 +25,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // Tests that ethash works correctly in test mode.
@@ -55,21 +55,14 @@ func TestTestMode(t *testing.T) {
 }
 
 // This test checks that cache lru logic doesn't crash under load.
-// It reproduces https://github.com/EgonCoin/EgonChain/issues/14943
+// It reproduces https://github.com/ethereum/go-ethereum/issues/14943
 func TestCacheFileEvict(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "ethash-test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-
-	config := Config{
-		CachesInMem:  3,
-		CachesOnDisk: 10,
-		CacheDir:     tmpdir,
-		PowMode:      ModeTest,
-	}
-	e := New(config, nil, false)
+	e := New(Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: tmpdir, PowMode: ModeTest}, nil, false)
 	defer e.Close()
 
 	workers := 8
@@ -135,7 +128,7 @@ func TestRemoteSealer(t *testing.T) {
 	}
 }
 
-func TestHashrate(t *testing.T) {
+func TestHashRate(t *testing.T) {
 	var (
 		hashrate = []hexutil.Uint64{100, 200, 300}
 		expect   uint64
@@ -150,7 +143,7 @@ func TestHashrate(t *testing.T) {
 
 	api := &API{ethash}
 	for i := 0; i < len(hashrate); i += 1 {
-		if res := api.SubmitHashrate(hashrate[i], ids[i]); !res {
+		if res := api.SubmitHashRate(hashrate[i], ids[i]); !res {
 			t.Error("remote miner submit hashrate failed")
 		}
 		expect += uint64(hashrate[i])
@@ -170,7 +163,7 @@ func TestClosedRemoteSealer(t *testing.T) {
 		t.Error("expect to return an error to indicate ethash is stopped")
 	}
 
-	if res := api.SubmitHashrate(hexutil.Uint64(100), common.HexToHash("a")); res {
+	if res := api.SubmitHashRate(hexutil.Uint64(100), common.HexToHash("a")); res {
 		t.Error("expect to return false when submit hashrate to a stopped ethash")
 	}
 }

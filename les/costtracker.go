@@ -23,12 +23,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/eth/ethconfig"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/les/flowcontrol"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/metrics"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/les/flowcontrol"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 )
 
 const makeCostStats = false // make request cost statistics during operation

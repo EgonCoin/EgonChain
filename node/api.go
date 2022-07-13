@@ -21,13 +21,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/internal/debug"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/internal/debug"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // apis returns the collection of built-in RPC APIs.
@@ -163,8 +162,8 @@ func (api *privateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, 
 	return rpcSub, nil
 }
 
-// StartHTTP starts the HTTP RPC API server.
-func (api *privateAdminAPI) StartHTTP(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
+// StartRPC starts the HTTP RPC API server.
+func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
 	api.node.lock.Lock()
 	defer api.node.lock.Unlock()
 
@@ -217,24 +216,10 @@ func (api *privateAdminAPI) StartHTTP(host *string, port *int, cors *string, api
 	return true, nil
 }
 
-// StartRPC starts the HTTP RPC API server.
-// Deprecated: use StartHTTP instead.
-func (api *privateAdminAPI) StartRPC(host *string, port *int, cors *string, apis *string, vhosts *string) (bool, error) {
-	log.Warn("Deprecation warning", "method", "admin.StartRPC", "use-instead", "admin.StartHTTP")
-	return api.StartHTTP(host, port, cors, apis, vhosts)
-}
-
-// StopHTTP shuts down the HTTP server.
-func (api *privateAdminAPI) StopHTTP() (bool, error) {
+// StopRPC shuts down the HTTP server.
+func (api *privateAdminAPI) StopRPC() (bool, error) {
 	api.node.http.stop()
 	return true, nil
-}
-
-// StopRPC shuts down the HTTP server.
-// Deprecated: use StopHTTP instead.
-func (api *privateAdminAPI) StopRPC() (bool, error) {
-	log.Warn("Deprecation warning", "method", "admin.StopRPC", "use-instead", "admin.StopHTTP")
-	return api.StopHTTP()
 }
 
 // StartWS starts the websocket RPC API server.

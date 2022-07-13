@@ -19,10 +19,10 @@ package simulations
 import (
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // NoopService is the service that does not do anything

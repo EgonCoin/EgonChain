@@ -25,11 +25,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/bitutil"
-	"github.com/EgonCoin/EgonChain/metrics"
-	"github.com/EgonCoin/EgonChain/p2p/rlpx"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common/bitutil"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/p2p/rlpx"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const (
@@ -63,10 +62,6 @@ func (t *rlpxTransport) ReadMsg() (Msg, error) {
 	t.conn.SetReadDeadline(time.Now().Add(frameReadTimeout))
 	code, data, wireSize, err := t.conn.Read()
 	if err == nil {
-		// Protocol messages are dispatched to subprotocol handlers asynchronously,
-		// but package rlpx may reuse the returned 'data' buffer on the next call
-		// to Read. Copy the message data to avoid this being an issue.
-		data = common.CopyBytes(data)
 		msg = Msg{
 			ReceivedAt: time.Now(),
 			Code:       code,

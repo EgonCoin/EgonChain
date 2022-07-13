@@ -18,11 +18,13 @@ package les
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/light"
+	"github.com/ethereum/go-ethereum/light"
 )
 
 var (
@@ -427,4 +429,11 @@ func (r *sentReq) stop(err error) {
 // stop function) after stopCh has been closed
 func (r *sentReq) getError() error {
 	return r.err
+}
+
+// genReqID generates a new random request ID
+func genReqID() uint64 {
+	var rnd [8]byte
+	rand.Read(rnd[:])
+	return binary.BigEndian.Uint64(rnd[:])
 }

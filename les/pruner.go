@@ -20,10 +20,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/math"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // pruner is responsible for pruning historical light chain data.
@@ -62,7 +62,6 @@ func (p *pruner) loop() {
 
 	// cleanTicker is the ticker used to trigger a history clean 2 times a day.
 	var cleanTicker = time.NewTicker(12 * time.Hour)
-	defer cleanTicker.Stop()
 
 	// pruning finds the sections that have been processed by all indexers
 	// and deletes all historical chain data.

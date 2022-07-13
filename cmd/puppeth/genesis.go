@@ -22,13 +22,13 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	math2 "github.com/EgonCoin/EgonChain/common/math"
-	"github.com/EgonCoin/EgonChain/consensus/ethash"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	math2 "github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // alethGenesisSpec represents the genesis specification format used by the

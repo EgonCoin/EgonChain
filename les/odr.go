@@ -18,14 +18,13 @@ package les
 
 import (
 	"context"
-	"math/rand"
 	"sort"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/light"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/light"
 )
 
 // LesOdr implements light.OdrBackend
@@ -157,7 +156,7 @@ func (odr *LesOdr) RetrieveTxStatus(ctx context.Context, req *light.TxStatusRequ
 		var (
 			// Deep copy the request, so that the partial result won't be mixed.
 			req     = &TxStatusRequest{Hashes: req.Hashes}
-			id      = rand.Uint64()
+			id      = genReqID()
 			distreq = &distReq{
 				getCost: func(dp distPeer) uint64 { return req.GetCost(dp.(*serverPeer)) },
 				canSend: func(dp distPeer) bool { return canSend[dp.(*serverPeer).id] },
@@ -201,7 +200,7 @@ func (odr *LesOdr) RetrieveTxStatus(ctx context.Context, req *light.TxStatusRequ
 func (odr *LesOdr) Retrieve(ctx context.Context, req light.OdrRequest) (err error) {
 	lreq := LesRequest(req)
 
-	reqID := rand.Uint64()
+	reqID := genReqID()
 	rq := &distReq{
 		getCost: func(dp distPeer) uint64 {
 			return lreq.GetCost(dp.(*serverPeer))

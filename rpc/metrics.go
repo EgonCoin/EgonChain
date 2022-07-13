@@ -19,7 +19,7 @@ package rpc
 import (
 	"fmt"
 
-	"github.com/EgonCoin/EgonChain/metrics"
+	"github.com/ethereum/go-ethereum/metrics"
 )
 
 var (

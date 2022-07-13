@@ -25,12 +25,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/accounts/abi/bind"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/contracts/checkpointoracle"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/contracts/checkpointoracle"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // CheckpointOracle is responsible for offering the latest stable checkpoint

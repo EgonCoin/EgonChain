@@ -29,10 +29,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // makeGenesis creates a new genesis struct based on some user input.
@@ -240,8 +240,8 @@ func (w *wizard) manageGenesis() {
 		w.conf.Genesis.Config.BerlinBlock = w.readDefaultBigInt(w.conf.Genesis.Config.BerlinBlock)
 
 		fmt.Println()
-		fmt.Printf("Which block should London come into effect? (default = %v)\n", w.conf.Genesis.Config.LondonBlock)
-		w.conf.Genesis.Config.LondonBlock = w.readDefaultBigInt(w.conf.Genesis.Config.LondonBlock)
+		fmt.Printf("Which block should YOLOv3 come into effect? (default = %v)\n", w.conf.Genesis.Config.YoloV3Block)
+		w.conf.Genesis.Config.YoloV3Block = w.readDefaultBigInt(w.conf.Genesis.Config.YoloV3Block)
 
 		out, _ := json.MarshalIndent(w.conf.Genesis.Config, "", "  ")
 		fmt.Printf("Chain configuration updated:\n\n%s\n", out)

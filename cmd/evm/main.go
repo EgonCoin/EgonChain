@@ -22,9 +22,9 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/EgonCoin/EgonChain/cmd/evm/internal/t8ntool"
-	"github.com/EgonCoin/EgonChain/cmd/utils"
-	"github.com/EgonCoin/EgonChain/internal/flags"
+	"github.com/ethereum/go-ethereum/cmd/evm/internal/t8ntool"
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/internal/flags"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -113,7 +113,7 @@ var (
 		Name:  "receiver",
 		Usage: "The transaction receiver (execution context)",
 	}
-	DisableMemoryFlag = cli.BoolTFlag{
+	DisableMemoryFlag = cli.BoolFlag{
 		Name:  "nomemory",
 		Usage: "disable memory output",
 	}
@@ -125,9 +125,14 @@ var (
 		Name:  "nostorage",
 		Usage: "disable storage output",
 	}
-	DisableReturnDataFlag = cli.BoolTFlag{
+	DisableReturnDataFlag = cli.BoolFlag{
 		Name:  "noreturndata",
-		Usage: "enable return data output",
+		Usage: "disable return data output",
+	}
+	EVMInterpreterFlag = cli.StringFlag{
+		Name:  "vm.evm",
+		Usage: "External EVM configuration (default = built-in interpreter)",
+		Value: "",
 	}
 )
 
@@ -135,14 +140,12 @@ var stateTransitionCommand = cli.Command{
 	Name:    "transition",
 	Aliases: []string{"t8n"},
 	Usage:   "executes a full state transition",
-	Action:  t8ntool.Transition,
+	Action:  t8ntool.Main,
 	Flags: []cli.Flag{
 		t8ntool.TraceFlag,
 		t8ntool.TraceDisableMemoryFlag,
-		t8ntool.TraceEnableMemoryFlag,
 		t8ntool.TraceDisableStackFlag,
 		t8ntool.TraceDisableReturnDataFlag,
-		t8ntool.TraceEnableReturnDataFlag,
 		t8ntool.OutputBasedir,
 		t8ntool.OutputAllocFlag,
 		t8ntool.OutputResultFlag,
@@ -153,37 +156,6 @@ var stateTransitionCommand = cli.Command{
 		t8ntool.ForknameFlag,
 		t8ntool.ChainIDFlag,
 		t8ntool.RewardFlag,
-		t8ntool.VerbosityFlag,
-	},
-}
-var transactionCommand = cli.Command{
-	Name:    "transaction",
-	Aliases: []string{"t9n"},
-	Usage:   "performs transaction validation",
-	Action:  t8ntool.Transaction,
-	Flags: []cli.Flag{
-		t8ntool.InputTxsFlag,
-		t8ntool.ChainIDFlag,
-		t8ntool.ForknameFlag,
-		t8ntool.VerbosityFlag,
-	},
-}
-
-var blockBuilderCommand = cli.Command{
-	Name:    "block-builder",
-	Aliases: []string{"b11r"},
-	Usage:   "builds a block",
-	Action:  t8ntool.BuildBlock,
-	Flags: []cli.Flag{
-		t8ntool.OutputBasedir,
-		t8ntool.OutputBlockFlag,
-		t8ntool.InputHeaderFlag,
-		t8ntool.InputOmmersFlag,
-		t8ntool.InputTxsRlpFlag,
-		t8ntool.SealCliqueFlag,
-		t8ntool.SealEthashFlag,
-		t8ntool.SealEthashDirFlag,
-		t8ntool.SealEthashModeFlag,
 		t8ntool.VerbosityFlag,
 	},
 }
@@ -213,6 +185,7 @@ func init() {
 		DisableStackFlag,
 		DisableStorageFlag,
 		DisableReturnDataFlag,
+		EVMInterpreterFlag,
 	}
 	app.Commands = []cli.Command{
 		compileCommand,
@@ -220,8 +193,6 @@ func init() {
 		runCommand,
 		stateTestCommand,
 		stateTransitionCommand,
-		transactionCommand,
-		blockBuilderCommand,
 	}
 	cli.CommandHelpTemplate = flags.OriginCommandHelpTemplate
 }
@@ -230,7 +201,7 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		code := 1
 		if ec, ok := err.(*t8ntool.NumberedError); ok {
-			code = ec.ExitCode()
+			code = ec.Code()
 		}
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(code)

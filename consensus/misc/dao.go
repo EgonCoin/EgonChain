@@ -21,9 +21,9 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/core/state"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (

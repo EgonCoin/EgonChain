@@ -19,8 +19,8 @@ package p2p
 import (
 	"fmt"
 
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 )
 
 // Protocol represents a P2P subprotocol implementation.

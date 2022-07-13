@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/accounts/keystore"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // deployNode creates a new node configuration based on some user input.

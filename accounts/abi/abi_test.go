@@ -26,9 +26,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/math"
-	"github.com/EgonCoin/EgonChain/crypto"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const jsondata = `
@@ -293,20 +293,6 @@ func TestOverloadedMethodSignature(t *testing.T) {
 	check("foo0", "foo(uint256)", true)
 	check("bar", "bar(uint256)", false)
 	check("bar0", "bar(uint256,uint256)", false)
-}
-
-func TestCustomErrors(t *testing.T) {
-	json := `[{ "inputs": [	{ "internalType": "uint256", "name": "", "type": "uint256" } ],"name": "MyError", "type": "error"} ]`
-	abi, err := JSON(strings.NewReader(json))
-	if err != nil {
-		t.Fatal(err)
-	}
-	check := func(name string, expect string) {
-		if abi.Errors[name].Sig != expect {
-			t.Fatalf("The signature of overloaded method mismatch, want %s, have %s", expect, abi.Methods[name].Sig)
-		}
-	}
-	check("MyError", "MyError(uint256)")
 }
 
 func TestMultiPack(t *testing.T) {

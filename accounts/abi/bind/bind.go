@@ -17,7 +17,7 @@
 // Package bind generates Ethereum contract Go bindings.
 //
 // Detailed usage document and tutorial available on the go-ethereum Wiki page:
-// https://github.com/EgonCoin/EgonChain/wiki/Native-DApps:-Go-bindings-to-Ethereum-contracts
+// https://github.com/ethereum/go-ethereum/wiki/Native-DApps:-Go-bindings-to-Ethereum-contracts
 package bind
 
 import (
@@ -30,8 +30,8 @@ import (
 	"text/template"
 	"unicode"
 
-	"github.com/EgonCoin/EgonChain/accounts/abi"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // Lang is a target programming language selector to generate bindings for.
@@ -88,13 +88,6 @@ func Bind(types []string, abis []string, bytecodes []string, fsigs []map[string]
 			transactIdentifiers = make(map[string]bool)
 			eventIdentifiers    = make(map[string]bool)
 		)
-
-		for _, input := range evmABI.Constructor.Inputs {
-			if hasStruct(input.Type) {
-				bindStructType[lang](input.Type, structs)
-			}
-		}
-
 		for _, original := range evmABI.Methods {
 			// Normalize the method for capital cases and non-anonymous inputs/outputs
 			normalized := original

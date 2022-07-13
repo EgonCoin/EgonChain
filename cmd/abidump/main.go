@@ -23,8 +23,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/signer/core/apitypes"
-	"github.com/EgonCoin/EgonChain/signer/fourbyte"
+	"github.com/ethereum/go-ethereum/signer/core"
+	"github.com/ethereum/go-ethereum/signer/fourbyte"
 )
 
 func init() {
@@ -41,7 +41,7 @@ func parse(data []byte) {
 	if err != nil {
 		die(err)
 	}
-	messages := apitypes.ValidationMessages{}
+	messages := core.ValidationMessages{}
 	db.ValidateCallData(nil, data, &messages)
 	for _, m := range messages.Messages {
 		fmt.Printf("%v: %v\n", m.Typ, m.Message)

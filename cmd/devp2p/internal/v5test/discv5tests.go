@@ -22,10 +22,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/internal/utesting"
-	"github.com/EgonCoin/EgonChain/p2p/discover/v5wire"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/netutil"
+	"github.com/ethereum/go-ethereum/internal/utesting"
+	"github.com/ethereum/go-ethereum/p2p/discover/v5wire"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 // Suite is the discv5 test suite.

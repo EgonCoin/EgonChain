@@ -45,12 +45,12 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/simulations"
-	"github.com/EgonCoin/EgonChain/p2p/simulations/adapters"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/simulations"
+	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
+	"github.com/ethereum/go-ethereum/rpc"
 	"gopkg.in/urfave/cli.v1"
 )
 

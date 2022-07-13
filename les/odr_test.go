@@ -26,17 +26,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/math"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/state"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/core/vm"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/light"
-	"github.com/EgonCoin/EgonChain/params"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/light"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type odrTestFn func(ctx context.Context, db ethdb.Database, config *params.ChainConfig, bc *core.BlockChain, lc *light.LightChain, bhash common.Hash) []byte
@@ -135,11 +135,11 @@ func odrContractCall(ctx context.Context, db ethdb.Database, config *params.Chai
 				from := statedb.GetOrNewStateObject(bankAddr)
 				from.SetBalance(math.MaxBig256)
 
-				msg := callmsg{types.NewMessage(from.Address(), &testContractAddr, 0, new(big.Int), 100000, big.NewInt(params.InitialBaseFee), big.NewInt(params.InitialBaseFee), new(big.Int), data, nil, true)}
+				msg := callmsg{types.NewMessage(from.Address(), &testContractAddr, 0, new(big.Int), 100000, new(big.Int), data, nil, false)}
 
 				context := core.NewEVMBlockContext(header, bc, nil)
 				txContext := core.NewEVMTxContext(msg)
-				vmenv := vm.NewEVM(context, txContext, statedb, config, vm.Config{NoBaseFee: true})
+				vmenv := vm.NewEVM(context, txContext, statedb, config, vm.Config{})
 
 				//vmenv := core.NewEnv(statedb, config, bc, msg, header, vm.Config{})
 				gp := new(core.GasPool).AddGas(math.MaxUint64)
@@ -150,10 +150,10 @@ func odrContractCall(ctx context.Context, db ethdb.Database, config *params.Chai
 			header := lc.GetHeaderByHash(bhash)
 			state := light.NewState(ctx, header, lc.Odr())
 			state.SetBalance(bankAddr, math.MaxBig256)
-			msg := callmsg{types.NewMessage(bankAddr, &testContractAddr, 0, new(big.Int), 100000, big.NewInt(params.InitialBaseFee), big.NewInt(params.InitialBaseFee), new(big.Int), data, nil, true)}
+			msg := callmsg{types.NewMessage(bankAddr, &testContractAddr, 0, new(big.Int), 100000, new(big.Int), data, nil, false)}
 			context := core.NewEVMBlockContext(header, lc, nil)
 			txContext := core.NewEVMTxContext(msg)
-			vmenv := vm.NewEVM(context, txContext, state, config, vm.Config{NoBaseFee: true})
+			vmenv := vm.NewEVM(context, txContext, state, config, vm.Config{})
 			gp := new(core.GasPool).AddGas(math.MaxUint64)
 			result, _ := core.ApplyMessage(vmenv, msg, gp)
 			if state.Error() == nil {
@@ -401,9 +401,9 @@ func testGetTxStatusFromUnindexedPeers(t *testing.T, protocol int) {
 			closeFns = append(closeFns, closePeer)
 
 			// Create a one-time routine for serving message
-			go func(i int, peer *testPeer, lookup uint64) {
-				serveMsg(peer, lookup)
-			}(i, peer, testspec.txLookups[i])
+			go func(i int, peer *testPeer) {
+				serveMsg(peer, testspec.txLookups[i])
+			}(i, peer)
 		}
 
 		// Send out the GetTxStatus requests, compare the result with

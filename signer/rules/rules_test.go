@@ -22,14 +22,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/accounts"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/internal/ethapi"
-	"github.com/EgonCoin/EgonChain/signer/core"
-	"github.com/EgonCoin/EgonChain/signer/core/apitypes"
-	"github.com/EgonCoin/EgonChain/signer/storage"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/signer/core"
+	"github.com/ethereum/go-ethereum/signer/storage"
 )
 
 const JS = `
@@ -181,7 +180,7 @@ func TestSignTxRequest(t *testing.T) {
 	}
 	t.Logf("to %v", to.Address().String())
 	resp, err := r.ApproveTx(&core.SignTxRequest{
-		Transaction: apitypes.SendTxArgs{
+		Transaction: core.SendTxArgs{
 			From: *from,
 			To:   to},
 		Callinfo: nil,
@@ -433,15 +432,15 @@ func dummyTx(value hexutil.Big) *core.SignTxRequest {
 	gasPrice := hexutil.Big(*big.NewInt(2000000))
 
 	return &core.SignTxRequest{
-		Transaction: apitypes.SendTxArgs{
+		Transaction: core.SendTxArgs{
 			From:     *from,
 			To:       to,
 			Value:    value,
 			Nonce:    n,
-			GasPrice: &gasPrice,
+			GasPrice: gasPrice,
 			Gas:      gas,
 		},
-		Callinfo: []apitypes.ValidationInfo{
+		Callinfo: []core.ValidationInfo{
 			{Typ: "Warning", Message: "All your base are bellong to us"},
 		},
 		Meta: core.Metadata{Remote: "remoteip", Local: "localip", Scheme: "inproc"},
@@ -605,7 +604,7 @@ function ApproveSignData(r){
 
 	t.Logf("address %v %v\n", addr.String(), addr.Original())
 
-	nvt := []*apitypes.NameValueType{
+	nvt := []*core.NameValueType{
 		{
 			Name:  "message",
 			Typ:   "text/plain",

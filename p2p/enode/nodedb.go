@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
@@ -427,14 +427,9 @@ func (db *DB) UpdateFindFailsV5(id ID, ip net.IP, fails int) error {
 	return db.storeInt64(v5Key(id, ip, dbNodeFindFails), int64(fails))
 }
 
-// localSeq retrieves the local record sequence counter, defaulting to the current
-// timestamp if no previous exists. This ensures that wiping all data associated
-// with a node (apart from its key) will not generate already used sequence nums.
+// LocalSeq retrieves the local record sequence counter.
 func (db *DB) localSeq(id ID) uint64 {
-	if seq := db.fetchUint64(localItemKey(id, dbLocalSeq)); seq > 0 {
-		return seq
-	}
-	return nowMilliseconds()
+	return db.fetchUint64(localItemKey(id, dbLocalSeq))
 }
 
 // storeLocalSeq stores the local record sequence counter.

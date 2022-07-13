@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/crypto"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -72,24 +72,24 @@ func returnCommitterToPool(h *committer) {
 	committerPool.Put(h)
 }
 
-// Commit collapses a node down into a hash node and inserts it into the database
-func (c *committer) Commit(n node, db *Database) (hashNode, int, error) {
+// commit collapses a node down into a hash node and inserts it into the database
+func (c *committer) Commit(n node, db *Database) (hashNode, error) {
 	if db == nil {
-		return nil, 0, errors.New("no db provided")
+		return nil, errors.New("no db provided")
 	}
-	h, committed, err := c.commit(n, db)
+	h, err := c.commit(n, db)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return h.(hashNode), committed, nil
+	return h.(hashNode), nil
 }
 
 // commit collapses a node down into a hash node and inserts it into the database
-func (c *committer) commit(n node, db *Database) (node, int, error) {
+func (c *committer) commit(n node, db *Database) (node, error) {
 	// if this path is clean, use available cached data
 	hash, dirty := n.cache()
 	if hash != nil && !dirty {
-		return hash, 0, nil
+		return hash, nil
 	}
 	// Commit children, then parent, and remove remove the dirty flag.
 	switch cn := n.(type) {
@@ -97,38 +97,37 @@ func (c *committer) commit(n node, db *Database) (node, int, error) {
 		// Commit child
 		collapsed := cn.copy()
 
-		// If the child is fullNode, recursively commit,
-		// otherwise it can only be hashNode or valueNode.
-		var childCommitted int
+		// If the child is fullnode, recursively commit.
+		// Otherwise it can only be hashNode or valueNode.
 		if _, ok := cn.Val.(*fullNode); ok {
-			childV, committed, err := c.commit(cn.Val, db)
+			childV, err := c.commit(cn.Val, db)
 			if err != nil {
-				return nil, 0, err
+				return nil, err
 			}
-			collapsed.Val, childCommitted = childV, committed
+			collapsed.Val = childV
 		}
 		// The key needs to be copied, since we're delivering it to database
 		collapsed.Key = hexToCompact(cn.Key)
 		hashedNode := c.store(collapsed, db)
 		if hn, ok := hashedNode.(hashNode); ok {
-			return hn, childCommitted + 1, nil
+			return hn, nil
 		}
-		return collapsed, childCommitted, nil
+		return collapsed, nil
 	case *fullNode:
-		hashedKids, childCommitted, err := c.commitChildren(cn, db)
+		hashedKids, err := c.commitChildren(cn, db)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		collapsed := cn.copy()
 		collapsed.Children = hashedKids
 
 		hashedNode := c.store(collapsed, db)
 		if hn, ok := hashedNode.(hashNode); ok {
-			return hn, childCommitted + 1, nil
+			return hn, nil
 		}
-		return collapsed, childCommitted, nil
+		return collapsed, nil
 	case hashNode:
-		return cn, 0, nil
+		return cn, nil
 	default:
 		// nil, valuenode shouldn't be committed
 		panic(fmt.Sprintf("%T: invalid node: %v", n, n))
@@ -136,11 +135,8 @@ func (c *committer) commit(n node, db *Database) (node, int, error) {
 }
 
 // commitChildren commits the children of the given fullnode
-func (c *committer) commitChildren(n *fullNode, db *Database) ([17]node, int, error) {
-	var (
-		committed int
-		children  [17]node
-	)
+func (c *committer) commitChildren(n *fullNode, db *Database) ([17]node, error) {
+	var children [17]node
 	for i := 0; i < 16; i++ {
 		child := n.Children[i]
 		if child == nil {
@@ -148,26 +144,25 @@ func (c *committer) commitChildren(n *fullNode, db *Database) ([17]node, int, er
 		}
 		// If it's the hashed child, save the hash value directly.
 		// Note: it's impossible that the child in range [0, 15]
-		// is a valueNode.
+		// is a valuenode.
 		if hn, ok := child.(hashNode); ok {
 			children[i] = hn
 			continue
 		}
 		// Commit the child recursively and store the "hashed" value.
 		// Note the returned node can be some embedded nodes, so it's
-		// possible the type is not hashNode.
-		hashed, childCommitted, err := c.commit(child, db)
+		// possible the type is not hashnode.
+		hashed, err := c.commit(child, db)
 		if err != nil {
-			return children, 0, err
+			return children, err
 		}
 		children[i] = hashed
-		committed += childCommitted
 	}
 	// For the 17th child, it's possible the type is valuenode.
 	if n.Children[16] != nil {
 		children[16] = n.Children[16]
 	}
-	return children, committed, nil
+	return children, nil
 }
 
 // store hashes the node n and if we have a storage layer specified, it writes
@@ -181,7 +176,7 @@ func (c *committer) store(n node, db *Database) node {
 	)
 	if hash == nil {
 		// This was not generated - must be a small node stored in the parent.
-		// In theory, we should apply the leafCall here if it's not nil(embedded
+		// In theory we should apply the leafCall here if it's not nil(embedded
 		// node usually contains value). But small value(less than 32bytes) is
 		// not our target.
 		return n
@@ -225,13 +220,13 @@ func (c *committer) commitLoop(db *Database) {
 			switch n := n.(type) {
 			case *shortNode:
 				if child, ok := n.Val.(valueNode); ok {
-					c.onleaf(nil, nil, child, hash)
+					c.onleaf(nil, child, hash)
 				}
 			case *fullNode:
 				// For children in range [0, 15], it's impossible
-				// to contain valueNode. Only check the 17th child.
+				// to contain valuenode. Only check the 17th child.
 				if n.Children[16] != nil {
-					c.onleaf(nil, nil, n.Children[16].(valueNode), hash)
+					c.onleaf(nil, n.Children[16].(valueNode), hash)
 				}
 			}
 		}

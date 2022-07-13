@@ -17,7 +17,7 @@
 package state
 
 import (
-	"github.com/EgonCoin/EgonChain/common"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 type accessList struct {

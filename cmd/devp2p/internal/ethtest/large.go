@@ -20,9 +20,9 @@ import (
 	"crypto/rand"
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // largeNumber returns a very large big.Int.
@@ -70,7 +70,7 @@ func largeHeader() *types.Header {
 		GasUsed:     0,
 		Coinbase:    common.Address{},
 		GasLimit:    0,
-		UncleHash:   types.EmptyUncleHash,
+		UncleHash:   randHash(),
 		Time:        1337,
 		ParentHash:  randHash(),
 		Root:        randHash(),

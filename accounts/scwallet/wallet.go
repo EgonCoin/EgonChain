@@ -33,12 +33,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain"
-	"github.com/EgonCoin/EgonChain/accounts"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	pcsc "github.com/gballet/go-libpcsclite"
 	"github.com/status-im/keycard-go/derivationpath"
 )
@@ -638,7 +638,7 @@ func (w *Wallet) Derive(path accounts.DerivationPath, pin bool) (accounts.Accoun
 // accounts.
 //
 // Note, self derivation will increment the last component of the specified path
-// opposed to descending into a child path to allow discovering accounts starting
+// opposed to decending into a child path to allow discovering accounts starting
 // from non zero components.
 //
 // Some hardware wallets switched derivation paths through their evolution, so

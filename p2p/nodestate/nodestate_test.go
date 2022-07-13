@@ -23,11 +23,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func testSetup(flagPersist []bool, fieldType []reflect.Type) (*Setup, []Flags, []Field) {

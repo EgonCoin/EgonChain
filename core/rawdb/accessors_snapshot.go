@@ -19,35 +19,15 @@ package rawdb
 import (
 	"encoding/binary"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
 )
-
-// ReadSnapshotDisabled retrieves if the snapshot maintenance is disabled.
-func ReadSnapshotDisabled(db ethdb.KeyValueReader) bool {
-	disabled, _ := db.Has(snapshotDisabledKey)
-	return disabled
-}
-
-// WriteSnapshotDisabled stores the snapshot pause flag.
-func WriteSnapshotDisabled(db ethdb.KeyValueWriter) {
-	if err := db.Put(snapshotDisabledKey, []byte("42")); err != nil {
-		log.Crit("Failed to store snapshot disabled flag", "err", err)
-	}
-}
-
-// DeleteSnapshotDisabled deletes the flag keeping the snapshot maintenance disabled.
-func DeleteSnapshotDisabled(db ethdb.KeyValueWriter) {
-	if err := db.Delete(snapshotDisabledKey); err != nil {
-		log.Crit("Failed to remove snapshot disabled flag", "err", err)
-	}
-}
 
 // ReadSnapshotRoot retrieves the root of the block whose state is contained in
 // the persisted snapshot.
 func ReadSnapshotRoot(db ethdb.KeyValueReader) common.Hash {
-	data, _ := db.Get(SnapshotRootKey)
+	data, _ := db.Get(snapshotRootKey)
 	if len(data) != common.HashLength {
 		return common.Hash{}
 	}
@@ -57,7 +37,7 @@ func ReadSnapshotRoot(db ethdb.KeyValueReader) common.Hash {
 // WriteSnapshotRoot stores the root of the block whose state is contained in
 // the persisted snapshot.
 func WriteSnapshotRoot(db ethdb.KeyValueWriter, root common.Hash) {
-	if err := db.Put(SnapshotRootKey, root[:]); err != nil {
+	if err := db.Put(snapshotRootKey, root[:]); err != nil {
 		log.Crit("Failed to store snapshot root", "err", err)
 	}
 }
@@ -67,7 +47,7 @@ func WriteSnapshotRoot(db ethdb.KeyValueWriter, root common.Hash) {
 // be used during updates, so a crash or failure will mark the entire snapshot
 // invalid.
 func DeleteSnapshotRoot(db ethdb.KeyValueWriter) {
-	if err := db.Delete(SnapshotRootKey); err != nil {
+	if err := db.Delete(snapshotRootKey); err != nil {
 		log.Crit("Failed to remove snapshot root", "err", err)
 	}
 }
@@ -206,5 +186,13 @@ func ReadSnapshotSyncStatus(db ethdb.KeyValueReader) []byte {
 func WriteSnapshotSyncStatus(db ethdb.KeyValueWriter, status []byte) {
 	if err := db.Put(snapshotSyncStatusKey, status); err != nil {
 		log.Crit("Failed to store snapshot sync status", "err", err)
+	}
+}
+
+// DeleteSnapshotSyncStatus deletes the serialized sync status saved at the last
+// shutdown
+func DeleteSnapshotSyncStatus(db ethdb.KeyValueWriter) {
+	if err := db.Delete(snapshotSyncStatusKey); err != nil {
+		log.Crit("Failed to remove snapshot sync status", "err", err)
 	}
 }

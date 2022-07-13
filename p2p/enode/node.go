@@ -26,8 +26,8 @@ import (
 	"net"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 var errMissingPrefix = errors.New("missing 'enr:' prefix for base64-encoded record")
@@ -121,7 +121,7 @@ func (n *Node) UDP() int {
 	return int(port)
 }
 
-// TCP returns the TCP port of the node.
+// UDP returns the TCP port of the node.
 func (n *Node) TCP() int {
 	var port enr.TCP
 	n.Load(&port)

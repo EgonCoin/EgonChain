@@ -25,13 +25,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/accounts/abi"
-	"github.com/EgonCoin/EgonChain/accounts/abi/bind"
-	"github.com/EgonCoin/EgonChain/cmd/utils"
-	"github.com/EgonCoin/EgonChain/common/compiler"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/internal/flags"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common/compiler"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/internal/flags"
+	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
 )
 

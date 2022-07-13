@@ -19,7 +19,7 @@ package snapshot
 import (
 	"bytes"
 
-	"github.com/EgonCoin/EgonChain/common"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // hashes is a helper to implement sort.Interface.

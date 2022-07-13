@@ -29,12 +29,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/p2p/discover/v5wire"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/p2p/netutil"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/discover/v5wire"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 const (
@@ -763,16 +763,9 @@ func (t *UDPv5) matchWithCall(fromID enode.ID, nonce v5wire.Nonce) (*callV5, err
 
 // handlePing sends a PONG response.
 func (t *UDPv5) handlePing(p *v5wire.Ping, fromID enode.ID, fromAddr *net.UDPAddr) {
-	remoteIP := fromAddr.IP
-	// Handle IPv4 mapped IPv6 addresses in the
-	// event the local node is binded to an
-	// ipv6 interface.
-	if remoteIP.To4() != nil {
-		remoteIP = remoteIP.To4()
-	}
 	t.sendResponse(fromID, fromAddr, &v5wire.Pong{
 		ReqID:  p.ReqID,
-		ToIP:   remoteIP,
+		ToIP:   fromAddr.IP,
 		ToPort: uint16(fromAddr.Port),
 		ENRSeq: t.localNode.Node().Seq(),
 	})

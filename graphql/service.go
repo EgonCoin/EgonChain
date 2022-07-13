@@ -20,8 +20,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/EgonCoin/EgonChain/internal/ethapi"
-	"github.com/EgonCoin/EgonChain/node"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/node"
 	"github.com/graph-gophers/graphql-go"
 )
 

@@ -7,14 +7,13 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/common/math"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/math"
 )
 
 var _ = (*genesisAccountMarshaling)(nil)
 
-// MarshalJSON marshals as JSON.
 func (g GenesisAccount) MarshalJSON() ([]byte, error) {
 	type GenesisAccount struct {
 		Code       hexutil.Bytes               `json:"code,omitempty"`
@@ -37,7 +36,6 @@ func (g GenesisAccount) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&enc)
 }
 
-// UnmarshalJSON unmarshals from JSON.
 func (g *GenesisAccount) UnmarshalJSON(input []byte) error {
 	type GenesisAccount struct {
 		Code       *hexutil.Bytes              `json:"code,omitempty"`

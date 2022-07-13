@@ -17,7 +17,7 @@
 package vm
 
 import (
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 func minSwapStack(n int) int {

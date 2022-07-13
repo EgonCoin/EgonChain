@@ -19,7 +19,7 @@ package keystore
 import (
 	"os"
 
-	"github.com/EgonCoin/EgonChain/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 )
 
 func Fuzz(input []byte) int {

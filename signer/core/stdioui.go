@@ -19,9 +19,9 @@ package core
 import (
 	"context"
 
-	"github.com/EgonCoin/EgonChain/internal/ethapi"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type StdIOUI struct {

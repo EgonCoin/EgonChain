@@ -21,8 +21,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/crypto"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func TestMakeTopics(t *testing.T) {

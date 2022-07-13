@@ -30,9 +30,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/accounts/keystore"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // Tests that the account management snippets work correctly.

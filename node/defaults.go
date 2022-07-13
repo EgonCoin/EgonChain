@@ -22,9 +22,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/nat"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/nat"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 const (
@@ -61,19 +61,19 @@ func DefaultDataDir() string {
 	if home != "" {
 		switch runtime.GOOS {
 		case "darwin":
-			return filepath.Join(home, "Library", "EgonCoin")
+			return filepath.Join(home, "Library", "EgonChain")
 		case "windows":
 			// We used to put everything in %HOME%\AppData\Roaming, but this caused
 			// problems with non-typical setups. If this fallback location exists and
 			// is non-empty, use it, otherwise DTRT and check %LOCALAPPDATA%.
-			fallback := filepath.Join(home, "AppData", "Roaming", "EgonCoin")
+			fallback := filepath.Join(home, "AppData", "Roaming", "EgonChain")
 			appdata := windowsAppData()
 			if appdata == "" || isNonEmptyDir(fallback) {
 				return fallback
 			}
-			return filepath.Join(appdata, "EgonCoin")
+			return filepath.Join(appdata, "EgonChain")
 		default:
-			return filepath.Join(home, ".egoncoin")
+			return filepath.Join(home, ".egonchain")
 		}
 	}
 	// As we cannot guess a stable location, return empty and handle later

@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func newTestFullNode(v []byte) []interface{} {

@@ -28,20 +28,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/consensus/ethash"
-	"github.com/EgonCoin/EgonChain/eth"
-	ethdownloader "github.com/EgonCoin/EgonChain/eth/downloader"
-	"github.com/EgonCoin/EgonChain/eth/ethconfig"
-	"github.com/EgonCoin/EgonChain/les/downloader"
-	"github.com/EgonCoin/EgonChain/les/flowcontrol"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/node"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/simulations"
-	"github.com/EgonCoin/EgonChain/p2p/simulations/adapters"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/les/flowcontrol"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/simulations"
+	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/mattn/go-colorable"
 )
 
@@ -495,14 +494,14 @@ func testSim(t *testing.T, serverCount, clientCount int, serverDir, clientDir []
 
 func newLesClientService(ctx *adapters.ServiceContext, stack *node.Node) (node.Lifecycle, error) {
 	config := ethconfig.Defaults
-	config.SyncMode = (ethdownloader.SyncMode)(downloader.LightSync)
+	config.SyncMode = downloader.LightSync
 	config.Ethash.PowMode = ethash.ModeFake
 	return New(stack, &config)
 }
 
 func newLesServerService(ctx *adapters.ServiceContext, stack *node.Node) (node.Lifecycle, error) {
 	config := ethconfig.Defaults
-	config.SyncMode = (ethdownloader.SyncMode)(downloader.FullSync)
+	config.SyncMode = downloader.FullSync
 	config.LightServ = testServerCapacity
 	config.LightPeers = testMaxClients
 	ethereum, err := eth.New(stack, &config)

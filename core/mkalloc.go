@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-//go:build none
 // +build none
 
 /*
@@ -35,11 +34,15 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
-type allocItem struct{ Addr, Balance *big.Int }
+type allocItem struct {
+	Addr    *big.Int
+	Balance *big.Int
+	Code    []byte
+}
 
 type allocList []allocItem
 
@@ -50,11 +53,11 @@ func (a allocList) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func makelist(g *core.Genesis) allocList {
 	a := make(allocList, 0, len(g.Alloc))
 	for addr, account := range g.Alloc {
-		if len(account.Storage) > 0 || len(account.Code) > 0 || account.Nonce != 0 {
+		if len(account.Storage) > 0 || account.Nonce != 0 {
 			panic(fmt.Sprintf("can't encode account %x", addr))
 		}
 		bigAddr := new(big.Int).SetBytes(addr.Bytes())
-		a = append(a, allocItem{bigAddr, account.Balance})
+		a = append(a, allocItem{bigAddr, account.Balance, account.Code})
 	}
 	sort.Sort(a)
 	return a

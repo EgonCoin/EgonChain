@@ -21,10 +21,10 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/eth/protocols/eth"
-	"github.com/EgonCoin/EgonChain/eth/protocols/snap"
-	"github.com/EgonCoin/EgonChain/p2p"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/eth/protocols/eth"
+	"github.com/ethereum/go-ethereum/eth/protocols/snap"
+	"github.com/ethereum/go-ethereum/p2p"
 )
 
 var (

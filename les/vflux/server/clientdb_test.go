@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/les/utils"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/les/utils"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 func expval(v uint64) utils.ExpiredValue {

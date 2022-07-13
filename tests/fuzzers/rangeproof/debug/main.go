@@ -21,7 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/EgonCoin/EgonChain/tests/fuzzers/rangeproof"
+	"github.com/ethereum/go-ethereum/tests/fuzzers/rangeproof"
 )
 
 func main() {

@@ -26,18 +26,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/consensus/ethash"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/eth"
-	"github.com/EgonCoin/EgonChain/eth/ethconfig"
-	"github.com/EgonCoin/EgonChain/node"
-	"github.com/EgonCoin/EgonChain/params"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 // Verify that Client implements the ethereum interfaces.
@@ -184,37 +184,12 @@ func TestToFilterArg(t *testing.T) {
 var (
 	testKey, _  = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 	testAddr    = crypto.PubkeyToAddress(testKey.PublicKey)
-	testBalance = big.NewInt(2e15)
+	testBalance = big.NewInt(2e10)
 )
-
-var genesis = &core.Genesis{
-	Config:    params.AllEthashProtocolChanges,
-	Alloc:     core.GenesisAlloc{testAddr: {Balance: testBalance}},
-	ExtraData: []byte("test genesis"),
-	Timestamp: 9000,
-	BaseFee:   big.NewInt(params.InitialBaseFee),
-}
-
-var testTx1 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &types.LegacyTx{
-	Nonce:    0,
-	Value:    big.NewInt(12),
-	GasPrice: big.NewInt(params.InitialBaseFee),
-	Gas:      params.TxGas,
-	To:       &common.Address{2},
-})
-
-var testTx2 = types.MustSignNewTx(testKey, types.LatestSigner(genesis.Config), &types.LegacyTx{
-	Nonce:    1,
-	Value:    big.NewInt(8),
-	GasPrice: big.NewInt(params.InitialBaseFee),
-	Gas:      params.TxGas,
-	To:       &common.Address{2},
-})
 
 func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
 	// Generate test chain.
-	blocks := generateTestChain()
-
+	genesis, blocks := generateTestChain()
 	// Create node
 	n, err := node.New(&node.Config{})
 	if err != nil {
@@ -237,22 +212,24 @@ func newTestBackend(t *testing.T) (*node.Node, []*types.Block) {
 	return n, blocks
 }
 
-func generateTestChain() []*types.Block {
+func generateTestChain() (*core.Genesis, []*types.Block) {
 	db := rawdb.NewMemoryDatabase()
+	config := params.AllEthashProtocolChanges
+	genesis := &core.Genesis{
+		Config:    config,
+		Alloc:     core.GenesisAlloc{testAddr: {Balance: testBalance}},
+		ExtraData: []byte("test genesis"),
+		Timestamp: 9000,
+	}
 	generate := func(i int, g *core.BlockGen) {
 		g.OffsetTime(5)
 		g.SetExtra([]byte("test"))
-		if i == 1 {
-			// Test transactions are included in block #2.
-			g.AddTx(testTx1)
-			g.AddTx(testTx2)
-		}
 	}
 	gblock := genesis.ToBlock(db)
 	engine := ethash.NewFaker()
-	blocks, _ := core.GenerateChain(genesis.Config, gblock, engine, db, 2, generate)
+	blocks, _ := core.GenerateChain(config, gblock, engine, db, 1, generate)
 	blocks = append([]*types.Block{gblock}, blocks...)
-	return blocks
+	return genesis, blocks
 }
 
 func TestEthClient(t *testing.T) {
@@ -264,32 +241,29 @@ func TestEthClient(t *testing.T) {
 	tests := map[string]struct {
 		test func(t *testing.T)
 	}{
-		"Header": {
+		"TestHeader": {
 			func(t *testing.T) { testHeader(t, chain, client) },
 		},
-		"BalanceAt": {
+		"TestBalanceAt": {
 			func(t *testing.T) { testBalanceAt(t, client) },
 		},
-		"TxInBlockInterrupted": {
+		"TestTxInBlockInterrupted": {
 			func(t *testing.T) { testTransactionInBlockInterrupted(t, client) },
 		},
-		"ChainID": {
+		"TestChainID": {
 			func(t *testing.T) { testChainID(t, client) },
 		},
-		"GetBlock": {
+		"TestGetBlock": {
 			func(t *testing.T) { testGetBlock(t, client) },
 		},
-		"StatusFunctions": {
+		"TestStatusFunctions": {
 			func(t *testing.T) { testStatusFunctions(t, client) },
 		},
-		"CallContract": {
+		"TestCallContract": {
 			func(t *testing.T) { testCallContract(t, client) },
 		},
-		"AtFunctions": {
+		"TestAtFunctions": {
 			func(t *testing.T) { testAtFunctions(t, client) },
-		},
-		"TransactionSender": {
-			func(t *testing.T) { testTransactionSender(t, client) },
 		},
 	}
 
@@ -314,9 +288,8 @@ func testHeader(t *testing.T, chain []*types.Block, client *rpc.Client) {
 			want:  chain[1].Header(),
 		},
 		"future_block": {
-			block:   big.NewInt(1000000000),
-			want:    nil,
-			wantErr: ethereum.NotFound,
+			block: big.NewInt(1000000000),
+			want:  nil,
 		},
 	}
 	for name, tt := range tests {
@@ -326,10 +299,10 @@ func testHeader(t *testing.T, chain []*types.Block, client *rpc.Client) {
 			defer cancel()
 
 			got, err := ec.HeaderByNumber(ctx, tt.block)
-			if !errors.Is(err, tt.wantErr) {
+			if tt.wantErr != nil && (err == nil || err.Error() != tt.wantErr.Error()) {
 				t.Fatalf("HeaderByNumber(%v) error = %q, want %q", tt.block, err, tt.wantErr)
 			}
-			if got != nil && got.Number != nil && got.Number.Sign() == 0 {
+			if got != nil && got.Number.Sign() == 0 {
 				got.Number = big.NewInt(0) // hack to make DeepEqual work
 			}
 			if !reflect.DeepEqual(got, tt.want) {
@@ -346,11 +319,6 @@ func testBalanceAt(t *testing.T, client *rpc.Client) {
 		want    *big.Int
 		wantErr error
 	}{
-		"valid_account_genesis": {
-			account: testAddr,
-			block:   big.NewInt(0),
-			want:    testBalance,
-		},
 		"valid_account": {
 			account: testAddr,
 			block:   big.NewInt(1),
@@ -388,25 +356,23 @@ func testBalanceAt(t *testing.T, client *rpc.Client) {
 func testTransactionInBlockInterrupted(t *testing.T, client *rpc.Client) {
 	ec := NewClient(client)
 
-	// Get current block by number.
+	// Get current block by number
 	block, err := ec.BlockByNumber(context.Background(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	// Test tx in block interupted.
+	// Test tx in block interupted
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	tx, err := ec.TransactionInBlock(ctx, block.Hash(), 0)
+	tx, err := ec.TransactionInBlock(ctx, block.Hash(), 1)
 	if tx != nil {
 		t.Fatal("transaction should be nil")
 	}
 	if err == nil || err == ethereum.NotFound {
 		t.Fatal("error should not be nil/notfound")
 	}
-
-	// Test tx in block not found.
-	if _, err := ec.TransactionInBlock(context.Background(), block.Hash(), 20); err != ethereum.NotFound {
+	// Test tx in block not found
+	if _, err := ec.TransactionInBlock(context.Background(), block.Hash(), 1); err != ethereum.NotFound {
 		t.Fatal("error should be ethereum.NotFound")
 	}
 }
@@ -424,13 +390,12 @@ func testChainID(t *testing.T, client *rpc.Client) {
 
 func testGetBlock(t *testing.T, client *rpc.Client) {
 	ec := NewClient(client)
-
 	// Get current block number
 	blockNumber, err := ec.BlockNumber(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if blockNumber != 2 {
+	if blockNumber != 1 {
 		t.Fatalf("BlockNumber returned wrong number: %d", blockNumber)
 	}
 	// Get current block by number
@@ -478,7 +443,6 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 	if progress != nil {
 		t.Fatalf("unexpected progress: %v", progress)
 	}
-
 	// NetworkID
 	networkID, err := ec.NetworkID(context.Background())
 	if err != nil {
@@ -487,23 +451,13 @@ func testStatusFunctions(t *testing.T, client *rpc.Client) {
 	if networkID.Cmp(big.NewInt(0)) != 0 {
 		t.Fatalf("unexpected networkID: %v", networkID)
 	}
-
-	// SuggestGasPrice
+	// SuggestGasPrice (should suggest 1 Gwei)
 	gasPrice, err := ec.SuggestGasPrice(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if gasPrice.Cmp(big.NewInt(1000000000)) != 0 {
 		t.Fatalf("unexpected gas price: %v", gasPrice)
-	}
-
-	// SuggestGasTipCap
-	gasTipCap, err := ec.SuggestGasTipCap(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if gasTipCap.Cmp(big.NewInt(234375000)) != 0 {
-		t.Fatalf("unexpected gas tip cap: %v", gasTipCap)
 	}
 }
 
@@ -512,10 +466,11 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 
 	// EstimateGas
 	msg := ethereum.CallMsg{
-		From:  testAddr,
-		To:    &common.Address{},
-		Gas:   21000,
-		Value: big.NewInt(1),
+		From:     testAddr,
+		To:       &common.Address{},
+		Gas:      21000,
+		GasPrice: big.NewInt(1),
+		Value:    big.NewInt(1),
 	}
 	gas, err := ec.EstimateGas(context.Background(), msg)
 	if err != nil {
@@ -536,11 +491,9 @@ func testCallContract(t *testing.T, client *rpc.Client) {
 
 func testAtFunctions(t *testing.T, client *rpc.Client) {
 	ec := NewClient(client)
-
 	// send a transaction for some interesting pending status
 	sendTransaction(ec)
 	time.Sleep(100 * time.Millisecond)
-
 	// Check pending transaction count
 	pending, err := ec.PendingTransactionCount(context.Background())
 	if err != nil {
@@ -599,66 +552,23 @@ func testAtFunctions(t *testing.T, client *rpc.Client) {
 	}
 }
 
-func testTransactionSender(t *testing.T, client *rpc.Client) {
-	ec := NewClient(client)
-	ctx := context.Background()
-
-	// Retrieve testTx1 via RPC.
-	block2, err := ec.HeaderByNumber(ctx, big.NewInt(2))
-	if err != nil {
-		t.Fatal("can't get block 1:", err)
-	}
-	tx1, err := ec.TransactionInBlock(ctx, block2.Hash(), 0)
-	if err != nil {
-		t.Fatal("can't get tx:", err)
-	}
-	if tx1.Hash() != testTx1.Hash() {
-		t.Fatalf("wrong tx hash %v, want %v", tx1.Hash(), testTx1.Hash())
-	}
-
-	// The sender address is cached in tx1, so no additional RPC should be required in
-	// TransactionSender. Ensure the server is not asked by canceling the context here.
-	canceledCtx, cancel := context.WithCancel(context.Background())
-	cancel()
-	sender1, err := ec.TransactionSender(canceledCtx, tx1, block2.Hash(), 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sender1 != testAddr {
-		t.Fatal("wrong sender:", sender1)
-	}
-
-	// Now try to get the sender of testTx2, which was not fetched through RPC.
-	// TransactionSender should query the server here.
-	sender2, err := ec.TransactionSender(ctx, testTx2, block2.Hash(), 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sender2 != testAddr {
-		t.Fatal("wrong sender:", sender2)
-	}
-}
-
 func sendTransaction(ec *Client) error {
+	// Retrieve chainID
 	chainID, err := ec.ChainID(context.Background())
 	if err != nil {
 		return err
 	}
-	nonce, err := ec.PendingNonceAt(context.Background(), testAddr)
-	if err != nil {
-		return err
-	}
-
+	// Create transaction
+	tx := types.NewTransaction(0, common.Address{1}, big.NewInt(1), 22000, big.NewInt(1), nil)
 	signer := types.LatestSignerForChainID(chainID)
-	tx, err := types.SignNewTx(testKey, signer, &types.LegacyTx{
-		Nonce:    nonce,
-		To:       &common.Address{2},
-		Value:    big.NewInt(1),
-		Gas:      22000,
-		GasPrice: big.NewInt(params.InitialBaseFee),
-	})
+	signature, err := crypto.Sign(signer.Hash(tx).Bytes(), testKey)
 	if err != nil {
 		return err
 	}
-	return ec.SendTransaction(context.Background(), tx)
+	signedTx, err := tx.WithSignature(signer, signature)
+	if err != nil {
+		return err
+	}
+	// Send transaction
+	return ec.SendTransaction(context.Background(), signedTx)
 }

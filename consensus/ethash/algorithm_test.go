@@ -26,9 +26,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // prepare converts an ethash cache or dataset from a byte stream into the internal
@@ -726,14 +726,10 @@ func TestConcurrentDiskCacheGeneration(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		pend.Add(1)
+
 		go func(idx int) {
 			defer pend.Done()
-
-			config := Config{
-				CacheDir:     cachedir,
-				CachesOnDisk: 1,
-			}
-			ethash := New(config, nil, false)
+			ethash := New(Config{cachedir, 0, 1, false, "", 0, 0, false, ModeNormal, nil}, nil, false)
 			defer ethash.Close()
 			if err := ethash.verifySeal(nil, block.Header(), false); err != nil {
 				t.Errorf("proc %d: block verification failed: %v", idx, err)

@@ -21,7 +21,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // resultStore implements a structure for maintaining fetchResults, tracking their

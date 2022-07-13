@@ -21,7 +21,7 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 var ErrNoReply = errors.New("no reply for given request")

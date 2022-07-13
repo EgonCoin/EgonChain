@@ -120,7 +120,7 @@ func importAccountWithExpect(t *testing.T, key string, expected string) {
 	if err := ioutil.WriteFile(passwordFile, []byte("foobar"), 0600); err != nil {
 		t.Error(err)
 	}
-	geth := runGeth(t, "--lightkdf", "account", "import", keyfile, "-password", passwordFile)
+	geth := runGeth(t, "account", "import", keyfile, "-password", passwordFile)
 	defer geth.ExpectExit()
 	geth.Expect(expected)
 }
@@ -216,7 +216,7 @@ Fatal: Failed to unlock account f466859ead1932d743d622cb74fc058882e8648a (could 
 `)
 }
 
-// https://github.com/EgonCoin/EgonChain/issues/1785
+// https://github.com/ethereum/go-ethereum/issues/1785
 func TestUnlockFlagMultiIndex(t *testing.T) {
 	geth := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--unlock", "0,2", "js", "testdata/empty.js")

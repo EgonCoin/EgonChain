@@ -23,11 +23,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/ethdb/memorydb"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/ethdb/memorydb"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 
-	"github.com/EgonCoin/EgonChain/les/utils"
+	"github.com/ethereum/go-ethereum/les/utils"
 )
 
 const (

@@ -26,13 +26,13 @@ import (
 	"strconv"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/node"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gorilla/websocket"
 )
 
@@ -242,7 +242,7 @@ func assignTCPPort() (uint16, error) {
 	if err != nil {
 		return 0, err
 	}
-	p, err := strconv.ParseUint(port, 10, 16)
+	p, err := strconv.ParseInt(port, 10, 32)
 	if err != nil {
 		return 0, err
 	}

@@ -21,9 +21,9 @@ import (
 	"errors"
 	"os"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/log"
 	bloomfilter "github.com/holiman/bloomfilter/v2"
 )
 
@@ -90,7 +90,7 @@ func (bloom *stateBloom) Commit(filename, tempname string) error {
 		return err
 	}
 	// Ensure the file is synced to disk
-	f, err := os.OpenFile(tempname, os.O_RDWR, 0666)
+	f, err := os.Open(tempname)
 	if err != nil {
 		return err
 	}

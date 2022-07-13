@@ -20,14 +20,15 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/forkid"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 // Tests that handshake failures are detected and reported correctly.
-func TestHandshake66(t *testing.T) { testHandshake(t, ETH66) }
+func TestHandshake64(t *testing.T) { testHandshake(t, 64) }
+func TestHandshake65(t *testing.T) { testHandshake(t, 65) }
 
 func testHandshake(t *testing.T, protocol uint) {
 	t.Parallel()

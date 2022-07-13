@@ -27,15 +27,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/state/snapshot"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/rlp"
-	"github.com/EgonCoin/EgonChain/trie"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/state/snapshot"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
@@ -84,12 +85,8 @@ type Pruner struct {
 }
 
 // NewPruner creates the pruner instance.
-func NewPruner(db ethdb.Database, datadir, trieCachePath string, bloomSize uint64) (*Pruner, error) {
-	headBlock := rawdb.ReadHeadBlock(db)
-	if headBlock == nil {
-		return nil, errors.New("Failed to load head block")
-	}
-	snaptree, err := snapshot.New(db, trie.NewDatabase(db), 256, headBlock.Root(), false, false, false)
+func NewPruner(db ethdb.Database, headHeader *types.Header, datadir, trieCachePath string, bloomSize uint64) (*Pruner, error) {
+	snaptree, err := snapshot.New(db, trie.NewDatabase(db), 256, headHeader.Root, false, false, false)
 	if err != nil {
 		return nil, err // The relevant snapshot(s) might not exist
 	}
@@ -107,12 +104,12 @@ func NewPruner(db ethdb.Database, datadir, trieCachePath string, bloomSize uint6
 		stateBloom:    stateBloom,
 		datadir:       datadir,
 		trieCachePath: trieCachePath,
-		headHeader:    headBlock.Header(),
+		headHeader:    headHeader,
 		snaptree:      snaptree,
 	}, nil
 }
 
-func prune(snaptree *snapshot.Tree, root common.Hash, maindb ethdb.Database, stateBloom *stateBloom, bloomPath string, middleStateRoots map[common.Hash]struct{}, start time.Time) error {
+func prune(maindb ethdb.Database, stateBloom *stateBloom, middleStateRoots map[common.Hash]struct{}, start time.Time) error {
 	// Delete all stale trie nodes in the disk. With the help of state bloom
 	// the trie nodes(and codes) belong to the active state will be filtered
 	// out. A very small part of stale tries will also be filtered because of
@@ -184,25 +181,6 @@ func prune(snaptree *snapshot.Tree, root common.Hash, maindb ethdb.Database, sta
 	}
 	iter.Release()
 	log.Info("Pruned state data", "nodes", count, "size", size, "elapsed", common.PrettyDuration(time.Since(pstart)))
-
-	// Pruning is done, now drop the "useless" layers from the snapshot.
-	// Firstly, flushing the target layer into the disk. After that all
-	// diff layers below the target will all be merged into the disk.
-	if err := snaptree.Cap(root, 0); err != nil {
-		return err
-	}
-	// Secondly, flushing the snapshot journal into the disk. All diff
-	// layers upon are dropped silently. Eventually the entire snapshot
-	// tree is converted into a single disk layer with the pruning target
-	// as the root.
-	if _, err := snaptree.Journal(root); err != nil {
-		return err
-	}
-	// Delete the state bloom, it marks the entire pruning procedure is
-	// finished. If any crashes or manual exit happens before this,
-	// `RecoverPruning` will pick it up in the next restarts to redo all
-	// the things.
-	os.RemoveAll(bloomPath)
 
 	// Start compactions, will remove the deleted data from the disk immediately.
 	// Note for small pruning, the compaction is skipped.
@@ -332,7 +310,29 @@ func (p *Pruner) Prune(root common.Hash) error {
 		return err
 	}
 	log.Info("State bloom filter committed", "name", filterName)
-	return prune(p.snaptree, root, p.db, p.stateBloom, filterName, middleRoots, start)
+
+	if err := prune(p.db, p.stateBloom, middleRoots, start); err != nil {
+		return err
+	}
+	// Pruning is done, now drop the "useless" layers from the snapshot.
+	// Firstly, flushing the target layer into the disk. After that all
+	// diff layers below the target will all be merged into the disk.
+	if err := p.snaptree.Cap(root, 0); err != nil {
+		return err
+	}
+	// Secondly, flushing the snapshot journal into the disk. All diff
+	// layers upon the target layer are dropped silently. Eventually the
+	// entire snapshot tree is converted into a single disk layer with
+	// the pruning target as the root.
+	if _, err := p.snaptree.Journal(root); err != nil {
+		return err
+	}
+	// Delete the state bloom, it marks the entire pruning procedure is
+	// finished. If any crashes or manual exit happens before this,
+	// `RecoverPruning` will pick it up in the next restarts to redo all
+	// the things.
+	os.RemoveAll(filterName)
+	return nil
 }
 
 // RecoverPruning will resume the pruning procedure during the system restart.
@@ -350,9 +350,9 @@ func RecoverPruning(datadir string, db ethdb.Database, trieCachePath string) err
 	if stateBloomPath == "" {
 		return nil // nothing to recover
 	}
-	headBlock := rawdb.ReadHeadBlock(db)
-	if headBlock == nil {
-		return errors.New("Failed to load head block")
+	headHeader, err := getHeadHeader(db)
+	if err != nil {
+		return err
 	}
 	// Initialize the snapshot tree in recovery mode to handle this special case:
 	// - Users run the `prune-state` command multiple times
@@ -362,7 +362,7 @@ func RecoverPruning(datadir string, db ethdb.Database, trieCachePath string) err
 	// - The state HEAD is rewound already because of multiple incomplete `prune-state`
 	// In this case, even the state HEAD is not exactly matched with snapshot, it
 	// still feasible to recover the pruning correctly.
-	snaptree, err := snapshot.New(db, trie.NewDatabase(db), 256, headBlock.Root(), false, false, true)
+	snaptree, err := snapshot.New(db, trie.NewDatabase(db), 256, headHeader.Root, false, false, true)
 	if err != nil {
 		return err // The relevant snapshot(s) might not exist
 	}
@@ -382,7 +382,7 @@ func RecoverPruning(datadir string, db ethdb.Database, trieCachePath string) err
 	// otherwise the dangling state will be left.
 	var (
 		found       bool
-		layers      = snaptree.Snapshots(headBlock.Root(), 128, true)
+		layers      = snaptree.Snapshots(headHeader.Root, 128, true)
 		middleRoots = make(map[common.Hash]struct{})
 	)
 	for _, layer := range layers {
@@ -396,7 +396,28 @@ func RecoverPruning(datadir string, db ethdb.Database, trieCachePath string) err
 		log.Error("Pruning target state is not existent")
 		return errors.New("non-existent target state")
 	}
-	return prune(snaptree, stateBloomRoot, db, stateBloom, stateBloomPath, middleRoots, time.Now())
+	if err := prune(db, stateBloom, middleRoots, time.Now()); err != nil {
+		return err
+	}
+	// Pruning is done, now drop the "useless" layers from the snapshot.
+	// Firstly, flushing the target layer into the disk. After that all
+	// diff layers below the target will all be merged into the disk.
+	if err := snaptree.Cap(stateBloomRoot, 0); err != nil {
+		return err
+	}
+	// Secondly, flushing the snapshot journal into the disk. All diff
+	// layers upon are dropped silently. Eventually the entire snapshot
+	// tree is converted into a single disk layer with the pruning target
+	// as the root.
+	if _, err := snaptree.Journal(stateBloomRoot); err != nil {
+		return err
+	}
+	// Delete the state bloom, it marks the entire pruning procedure is
+	// finished. If any crashes or manual exit happens before this,
+	// `RecoverPruning` will pick it up in the next restarts to redo all
+	// the things.
+	os.RemoveAll(stateBloomPath)
+	return nil
 }
 
 // extractGenesis loads the genesis state and commits all the state entries
@@ -425,7 +446,7 @@ func extractGenesis(db ethdb.Database, stateBloom *stateBloom) error {
 		// If it's a leaf node, yes we are touching an account,
 		// dig into the storage trie further.
 		if accIter.Leaf() {
-			var acc types.StateAccount
+			var acc state.Account
 			if err := rlp.DecodeBytes(accIter.LeafBlob(), &acc); err != nil {
 				return err
 			}
@@ -483,6 +504,22 @@ func findBloomFilter(datadir string) (string, common.Hash, error) {
 		return "", common.Hash{}, err
 	}
 	return stateBloomPath, stateBloomRoot, nil
+}
+
+func getHeadHeader(db ethdb.Database) (*types.Header, error) {
+	headHeaderHash := rawdb.ReadHeadBlockHash(db)
+	if headHeaderHash == (common.Hash{}) {
+		return nil, errors.New("empty head block hash")
+	}
+	headHeaderNumber := rawdb.ReadHeaderNumber(db, headHeaderHash)
+	if headHeaderNumber == nil {
+		return nil, errors.New("empty head block number")
+	}
+	headHeader := rawdb.ReadHeader(db, headHeaderHash, *headHeaderNumber)
+	if headHeader == nil {
+		return nil, errors.New("empty head header")
+	}
+	return headHeader, nil
 }
 
 const warningLog = `

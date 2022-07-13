@@ -19,8 +19,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/EgonCoin/EgonChain/cmd/utils"
-	"github.com/EgonCoin/EgonChain/common"
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
 	"gopkg.in/urfave/cli.v1"
 )
 

@@ -21,18 +21,17 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/consensus"
-	"github.com/EgonCoin/EgonChain/consensus/ethash"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/core/vm"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/eth/downloader"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/event"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
@@ -92,7 +91,7 @@ func (p *testTxPool) AddRemotes(txs []*types.Transaction) []error {
 }
 
 // Pending returns all the transactions known to the pool
-func (p *testTxPool) Pending(enforceTips bool) map[common.Address]types.Transactions {
+func (p *testTxPool) Pending() (map[common.Address]types.Transactions, error) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 
@@ -104,7 +103,7 @@ func (p *testTxPool) Pending(enforceTips bool) map[common.Address]types.Transact
 	for _, batch := range batches {
 		sort.Sort(types.TxByNonce(batch))
 	}
-	return batches
+	return batches, nil
 }
 
 // SubscribeNewTxsEvent should return an event subscription of NewTxsEvent and
@@ -150,9 +149,8 @@ func newTestHandlerWithBlocks(blocks int) *testHandler {
 		Database:   db,
 		Chain:      chain,
 		TxPool:     txpool,
-		Merger:     consensus.NewMerger(rawdb.NewMemoryDatabase()),
 		Network:    1,
-		Sync:       downloader.SnapSync,
+		Sync:       downloader.FastSync,
 		BloomCache: 1,
 	})
 	handler.Start(1000)

@@ -24,21 +24,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/consensus"
-	"github.com/EgonCoin/EgonChain/consensus/ethash"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/forkid"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/core/vm"
-	"github.com/EgonCoin/EgonChain/eth/downloader"
-	"github.com/EgonCoin/EgonChain/eth/protocols/eth"
-	"github.com/EgonCoin/EgonChain/event"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/params"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/eth/protocols/eth"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // testEthHandler is a mock event handler to listen for inbound network requests
@@ -50,6 +49,7 @@ type testEthHandler struct {
 }
 
 func (h *testEthHandler) Chain() *core.BlockChain              { panic("no backing chain") }
+func (h *testEthHandler) StateBloom() *trie.SyncBloom          { panic("no backing state bloom") }
 func (h *testEthHandler) TxPool() eth.TxPool                   { panic("no backing tx pool") }
 func (h *testEthHandler) AcceptTxs() bool                      { return true }
 func (h *testEthHandler) RunPeer(*eth.Peer, eth.Handler) error { panic("not used in tests") }
@@ -80,7 +80,8 @@ func (h *testEthHandler) Handle(peer *eth.Peer, packet eth.Packet) error {
 
 // Tests that peers are correctly accepted (or rejected) based on the advertised
 // fork IDs in the protocol handshake.
-func TestForkIDSplit66(t *testing.T) { testForkIDSplit(t, eth.ETH66) }
+func TestForkIDSplit64(t *testing.T) { testForkIDSplit(t, 64) }
+func TestForkIDSplit65(t *testing.T) { testForkIDSplit(t, 65) }
 
 func testForkIDSplit(t *testing.T, protocol uint) {
 	t.Parallel()
@@ -115,7 +116,6 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 			Database:   dbNoFork,
 			Chain:      chainNoFork,
 			TxPool:     newTestTxPool(),
-			Merger:     consensus.NewMerger(rawdb.NewMemoryDatabase()),
 			Network:    1,
 			Sync:       downloader.FullSync,
 			BloomCache: 1,
@@ -124,7 +124,6 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 			Database:   dbProFork,
 			Chain:      chainProFork,
 			TxPool:     newTestTxPool(),
-			Merger:     consensus.NewMerger(rawdb.NewMemoryDatabase()),
 			Network:    1,
 			Sync:       downloader.FullSync,
 			BloomCache: 1,
@@ -145,8 +144,8 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 	defer p2pNoFork.Close()
 	defer p2pProFork.Close()
 
-	peerNoFork := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pNoFork), p2pNoFork, nil)
-	peerProFork := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pProFork), p2pProFork, nil)
+	peerNoFork := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{1}, "", nil), p2pNoFork, nil)
+	peerProFork := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{2}, "", nil), p2pProFork, nil)
 	defer peerNoFork.Close()
 	defer peerProFork.Close()
 
@@ -207,8 +206,8 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 	defer p2pNoFork.Close()
 	defer p2pProFork.Close()
 
-	peerNoFork = eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pNoFork), p2pNoFork, nil)
-	peerProFork = eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pProFork), p2pProFork, nil)
+	peerNoFork = eth.NewPeer(protocol, p2p.NewPeer(enode.ID{1}, "", nil), p2pNoFork, nil)
+	peerProFork = eth.NewPeer(protocol, p2p.NewPeer(enode.ID{2}, "", nil), p2pProFork, nil)
 	defer peerNoFork.Close()
 	defer peerProFork.Close()
 
@@ -237,7 +236,8 @@ func testForkIDSplit(t *testing.T, protocol uint) {
 }
 
 // Tests that received transactions are added to the local pool.
-func TestRecvTransactions66(t *testing.T) { testRecvTransactions(t, eth.ETH66) }
+func TestRecvTransactions64(t *testing.T) { testRecvTransactions(t, 64) }
+func TestRecvTransactions65(t *testing.T) { testRecvTransactions(t, 65) }
 
 func testRecvTransactions(t *testing.T, protocol uint) {
 	t.Parallel()
@@ -257,8 +257,8 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 	defer p2pSrc.Close()
 	defer p2pSink.Close()
 
-	src := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pSrc), p2pSrc, handler.txpool)
-	sink := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pSink), p2pSink, handler.txpool)
+	src := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{1}, "", nil), p2pSrc, handler.txpool)
+	sink := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{2}, "", nil), p2pSink, handler.txpool)
 	defer src.Close()
 	defer sink.Close()
 
@@ -294,7 +294,8 @@ func testRecvTransactions(t *testing.T, protocol uint) {
 }
 
 // This test checks that pending transactions are sent.
-func TestSendTransactions66(t *testing.T) { testSendTransactions(t, eth.ETH66) }
+func TestSendTransactions64(t *testing.T) { testSendTransactions(t, 64) }
+func TestSendTransactions65(t *testing.T) { testSendTransactions(t, 65) }
 
 func testSendTransactions(t *testing.T, protocol uint) {
 	t.Parallel()
@@ -305,7 +306,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 
 	insert := make([]*types.Transaction, 100)
 	for nonce := range insert {
-		tx := types.NewTransaction(uint64(nonce), common.Address{}, big.NewInt(0), 100000, big.NewInt(0), make([]byte, 10240))
+		tx := types.NewTransaction(uint64(nonce), common.Address{}, big.NewInt(0), 100000, big.NewInt(0), make([]byte, txsyncPackSize/10))
 		tx, _ = types.SignTx(tx, types.HomesteadSigner{}, testKey)
 
 		insert[nonce] = tx
@@ -318,8 +319,8 @@ func testSendTransactions(t *testing.T, protocol uint) {
 	defer p2pSrc.Close()
 	defer p2pSink.Close()
 
-	src := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pSrc), p2pSrc, handler.txpool)
-	sink := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pSink), p2pSink, handler.txpool)
+	src := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{1}, "", nil), p2pSrc, handler.txpool)
+	sink := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{2}, "", nil), p2pSink, handler.txpool)
 	defer src.Close()
 	defer sink.Close()
 
@@ -353,7 +354,19 @@ func testSendTransactions(t *testing.T, protocol uint) {
 	seen := make(map[common.Hash]struct{})
 	for len(seen) < len(insert) {
 		switch protocol {
-		case 66:
+		case 63, 64:
+			select {
+			case <-anns:
+				t.Errorf("tx announce received on pre eth/65")
+			case txs := <-bcasts:
+				for _, tx := range txs {
+					if _, ok := seen[tx.Hash()]; ok {
+						t.Errorf("duplicate transaction announced: %x", tx.Hash())
+					}
+					seen[tx.Hash()] = struct{}{}
+				}
+			}
+		case 65:
 			select {
 			case hashes := <-anns:
 				for _, hash := range hashes {
@@ -363,7 +376,7 @@ func testSendTransactions(t *testing.T, protocol uint) {
 					seen[hash] = struct{}{}
 				}
 			case <-bcasts:
-				t.Errorf("initial tx broadcast received on post eth/66")
+				t.Errorf("initial tx broadcast received on post eth/65")
 			}
 
 		default:
@@ -379,7 +392,8 @@ func testSendTransactions(t *testing.T, protocol uint) {
 
 // Tests that transactions get propagated to all attached peers, either via direct
 // broadcasts or via announcements/retrievals.
-func TestTransactionPropagation66(t *testing.T) { testTransactionPropagation(t, eth.ETH66) }
+func TestTransactionPropagation64(t *testing.T) { testTransactionPropagation(t, 64) }
+func TestTransactionPropagation65(t *testing.T) { testTransactionPropagation(t, 65) }
 
 func testTransactionPropagation(t *testing.T, protocol uint) {
 	t.Parallel()
@@ -388,7 +402,6 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 	// to receive them. We need multiple sinks since a one-to-one peering would
 	// broadcast all transactions without announcement.
 	source := newTestHandler()
-	source.handler.snapSync = 0 // Avoid requiring snap, otherwise some will be dropped below
 	defer source.close()
 
 	sinks := make([]*testHandler, 10)
@@ -406,8 +419,8 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 		defer sourcePipe.Close()
 		defer sinkPipe.Close()
 
-		sourcePeer := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{byte(i + 1)}, "", nil, sourcePipe), sourcePipe, source.txpool)
-		sinkPeer := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{0}, "", nil, sinkPipe), sinkPipe, sink.txpool)
+		sourcePeer := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{byte(i)}, "", nil), sourcePipe, source.txpool)
+		sinkPeer := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{0}, "", nil), sinkPipe, sink.txpool)
 		defer sourcePeer.Close()
 		defer sinkPeer.Close()
 
@@ -438,13 +451,12 @@ func testTransactionPropagation(t *testing.T, protocol uint) {
 
 	// Iterate through all the sinks and ensure they all got the transactions
 	for i := range sinks {
-		for arrived, timeout := 0, false; arrived < len(txs) && !timeout; {
+		for arrived := 0; arrived < len(txs); {
 			select {
 			case event := <-txChs[i]:
 				arrived += len(event.Txs)
-			case <-time.After(time.Second):
+			case <-time.NewTimer(time.Second).C:
 				t.Errorf("sink %d: transaction propagation timed out: have %d, want %d", i, arrived, len(txs))
-				timeout = true
 			}
 		}
 	}
@@ -464,23 +476,23 @@ func TestCheckpointChallenge(t *testing.T) {
 	}{
 		// If checkpointing is not enabled locally, don't challenge and don't drop
 		{downloader.FullSync, false, false, false, false, false},
-		{downloader.SnapSync, false, false, false, false, false},
+		{downloader.FastSync, false, false, false, false, false},
 
 		// If checkpointing is enabled locally and remote response is empty, only drop during fast sync
 		{downloader.FullSync, true, false, true, false, false},
-		{downloader.SnapSync, true, false, true, false, true}, // Special case, fast sync, unsynced peer
+		{downloader.FastSync, true, false, true, false, true}, // Special case, fast sync, unsynced peer
 
 		// If checkpointing is enabled locally and remote response mismatches, always drop
 		{downloader.FullSync, true, false, false, false, true},
-		{downloader.SnapSync, true, false, false, false, true},
+		{downloader.FastSync, true, false, false, false, true},
 
 		// If checkpointing is enabled locally and remote response matches, never drop
 		{downloader.FullSync, true, false, false, true, false},
-		{downloader.SnapSync, true, false, false, true, false},
+		{downloader.FastSync, true, false, false, true, false},
 
 		// If checkpointing is enabled locally and remote times out, always drop
 		{downloader.FullSync, true, true, false, true, true},
-		{downloader.SnapSync, true, true, false, true, true},
+		{downloader.FastSync, true, true, false, true, true},
 	}
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("sync %v checkpoint %v timeout %v empty %v match %v", tt.syncmode, tt.checkpoint, tt.timeout, tt.empty, tt.match), func(t *testing.T) {
@@ -490,7 +502,6 @@ func TestCheckpointChallenge(t *testing.T) {
 }
 
 func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpoint bool, timeout bool, empty bool, match bool, drop bool) {
-
 	// Reduce the checkpoint handshake challenge timeout
 	defer func(old time.Duration) { syncChallengeTimeout = old }(syncChallengeTimeout)
 	syncChallengeTimeout = 250 * time.Millisecond
@@ -501,10 +512,10 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 	handler := newTestHandler()
 	defer handler.close()
 
-	if syncmode == downloader.SnapSync {
-		atomic.StoreUint32(&handler.handler.snapSync, 1)
+	if syncmode == downloader.FastSync {
+		atomic.StoreUint32(&handler.handler.fastSync, 1)
 	} else {
-		atomic.StoreUint32(&handler.handler.snapSync, 0)
+		atomic.StoreUint32(&handler.handler.fastSync, 0)
 	}
 	var response *types.Header
 	if checkpoint {
@@ -514,26 +525,20 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 		handler.handler.checkpointNumber = number
 		handler.handler.checkpointHash = response.Hash()
 	}
-
-	// Create a challenger peer and a challenged one.
+	// Create a challenger peer and a challenged one
 	p2pLocal, p2pRemote := p2p.MsgPipe()
 	defer p2pLocal.Close()
 	defer p2pRemote.Close()
 
-	local := eth.NewPeer(eth.ETH66, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pLocal), p2pLocal, handler.txpool)
-	remote := eth.NewPeer(eth.ETH66, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pRemote), p2pRemote, handler.txpool)
+	local := eth.NewPeer(eth.ETH64, p2p.NewPeer(enode.ID{1}, "", nil), p2pLocal, handler.txpool)
+	remote := eth.NewPeer(eth.ETH64, p2p.NewPeer(enode.ID{2}, "", nil), p2pRemote, handler.txpool)
 	defer local.Close()
 	defer remote.Close()
 
-	handlerDone := make(chan struct{})
-	go func() {
-		defer close(handlerDone)
-		handler.handler.runEthPeer(local, func(peer *eth.Peer) error {
-			return eth.Handle((*ethHandler)(handler.handler), peer)
-		})
-	}()
-
-	// Run the handshake locally to avoid spinning up a remote handler.
+	go handler.handler.runEthPeer(local, func(peer *eth.Peer) error {
+		return eth.Handle((*ethHandler)(handler.handler), peer)
+	})
+	// Run the handshake locally to avoid spinning up a remote handler
 	var (
 		genesis = handler.chain.Genesis()
 		head    = handler.chain.CurrentBlock()
@@ -542,36 +547,23 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 	if err := remote.Handshake(1, td, head.Hash(), genesis.Hash(), forkid.NewIDWithChain(handler.chain), forkid.NewFilter(handler.chain)); err != nil {
 		t.Fatalf("failed to run protocol handshake")
 	}
-	// Connect a new peer and check that we receive the checkpoint challenge.
+	// Connect a new peer and check that we receive the checkpoint challenge
 	if checkpoint {
-		msg, err := p2pRemote.ReadMsg()
-		if err != nil {
-			t.Fatalf("failed to read checkpoint challenge: %v", err)
+		if err := remote.ExpectRequestHeadersByNumber(response.Number.Uint64(), 1, 0, false); err != nil {
+			t.Fatalf("challenge mismatch: %v", err)
 		}
-		request := new(eth.GetBlockHeadersPacket66)
-		if err := msg.Decode(request); err != nil {
-			t.Fatalf("failed to decode checkpoint challenge: %v", err)
-		}
-		query := request.GetBlockHeadersPacket
-		if query.Origin.Number != response.Number.Uint64() || query.Amount != 1 || query.Skip != 0 || query.Reverse {
-			t.Fatalf("challenge mismatch: have [%d, %d, %d, %v] want [%d, %d, %d, %v]",
-				query.Origin.Number, query.Amount, query.Skip, query.Reverse,
-				response.Number.Uint64(), 1, 0, false)
-		}
-		// Create a block to reply to the challenge if no timeout is simulated.
+		// Create a block to reply to the challenge if no timeout is simulated
 		if !timeout {
 			if empty {
-				if err := remote.ReplyBlockHeadersRLP(request.RequestId, []rlp.RawValue{}); err != nil {
+				if err := remote.SendBlockHeaders([]*types.Header{}); err != nil {
 					t.Fatalf("failed to answer challenge: %v", err)
 				}
 			} else if match {
-				responseRlp, _ := rlp.EncodeToBytes(response)
-				if err := remote.ReplyBlockHeadersRLP(request.RequestId, []rlp.RawValue{responseRlp}); err != nil {
+				if err := remote.SendBlockHeaders([]*types.Header{response}); err != nil {
 					t.Fatalf("failed to answer challenge: %v", err)
 				}
 			} else {
-				responseRlp, _ := rlp.EncodeToBytes(types.Header{Number: response.Number})
-				if err := remote.ReplyBlockHeadersRLP(request.RequestId, []rlp.RawValue{responseRlp}); err != nil {
+				if err := remote.SendBlockHeaders([]*types.Header{{Number: response.Number}}); err != nil {
 					t.Fatalf("failed to answer challenge: %v", err)
 				}
 			}
@@ -580,9 +572,8 @@ func testCheckpointChallenge(t *testing.T, syncmode downloader.SyncMode, checkpo
 	// Wait until the test timeout passes to ensure proper cleanup
 	time.Sleep(syncChallengeTimeout + 300*time.Millisecond)
 
-	// Verify that the remote peer is maintained or dropped.
+	// Verify that the remote peer is maintained or dropped
 	if drop {
-		<-handlerDone
 		if peers := handler.handler.peers.len(); peers != 0 {
 			t.Fatalf("peer count mismatch: have %d, want %d", peers, 0)
 		}
@@ -629,8 +620,8 @@ func testBroadcastBlock(t *testing.T, peers, bcasts int) {
 		defer sourcePipe.Close()
 		defer sinkPipe.Close()
 
-		sourcePeer := eth.NewPeer(eth.ETH66, p2p.NewPeerPipe(enode.ID{byte(i)}, "", nil, sourcePipe), sourcePipe, nil)
-		sinkPeer := eth.NewPeer(eth.ETH66, p2p.NewPeerPipe(enode.ID{0}, "", nil, sinkPipe), sinkPipe, nil)
+		sourcePeer := eth.NewPeer(eth.ETH64, p2p.NewPeer(enode.ID{byte(i)}, "", nil), sourcePipe, nil)
+		sinkPeer := eth.NewPeer(eth.ETH64, p2p.NewPeer(enode.ID{0}, "", nil), sinkPipe, nil)
 		defer sourcePeer.Close()
 		defer sinkPeer.Close()
 
@@ -681,7 +672,8 @@ func testBroadcastBlock(t *testing.T, peers, bcasts int) {
 
 // Tests that a propagated malformed block (uncles or transactions don't match
 // with the hashes in the header) gets discarded and not broadcast forward.
-func TestBroadcastMalformedBlock66(t *testing.T) { testBroadcastMalformedBlock(t, eth.ETH66) }
+func TestBroadcastMalformedBlock64(t *testing.T) { testBroadcastMalformedBlock(t, 64) }
+func TestBroadcastMalformedBlock65(t *testing.T) { testBroadcastMalformedBlock(t, 65) }
 
 func testBroadcastMalformedBlock(t *testing.T, protocol uint) {
 	t.Parallel()
@@ -696,8 +688,8 @@ func testBroadcastMalformedBlock(t *testing.T, protocol uint) {
 	defer p2pSrc.Close()
 	defer p2pSink.Close()
 
-	src := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{1}, "", nil, p2pSrc), p2pSrc, source.txpool)
-	sink := eth.NewPeer(protocol, p2p.NewPeerPipe(enode.ID{2}, "", nil, p2pSink), p2pSink, source.txpool)
+	src := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{1}, "", nil), p2pSrc, source.txpool)
+	sink := eth.NewPeer(protocol, p2p.NewPeer(enode.ID{2}, "", nil), p2pSink, source.txpool)
 	defer src.Close()
 	defer sink.Close()
 

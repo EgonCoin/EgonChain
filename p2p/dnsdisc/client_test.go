@@ -26,12 +26,12 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/internal/testlog"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/internal/testlog"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
 )
 
 const (
@@ -113,21 +113,6 @@ func TestIterator(t *testing.T) {
 	}
 
 	checkIterator(t, it, nodes)
-}
-
-func TestIteratorCloseWithoutNext(t *testing.T) {
-	tree1, url1 := makeTestTree("t1", nil, nil)
-	c := NewClient(Config{Resolver: newMapResolver(tree1.ToTXT("t1"))})
-	it, err := c.NewIterator(url1)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	it.Close()
-	ok := it.Next()
-	if ok {
-		t.Fatal("Next returned true after Close")
-	}
 }
 
 // This test checks if closing randomIterator races.

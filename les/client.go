@@ -21,33 +21,32 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/accounts"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/consensus"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/bloombits"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/eth/ethconfig"
-	"github.com/EgonCoin/EgonChain/eth/filters"
-	"github.com/EgonCoin/EgonChain/eth/gasprice"
-	"github.com/EgonCoin/EgonChain/event"
-	"github.com/EgonCoin/EgonChain/internal/ethapi"
-	"github.com/EgonCoin/EgonChain/internal/shutdowncheck"
-	"github.com/EgonCoin/EgonChain/les/downloader"
-	"github.com/EgonCoin/EgonChain/les/vflux"
-	vfc "github.com/EgonCoin/EgonChain/les/vflux/client"
-	"github.com/EgonCoin/EgonChain/light"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/node"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/params"
-	"github.com/EgonCoin/EgonChain/rlp"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/bloombits"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/eth/filters"
+	"github.com/ethereum/go-ethereum/eth/gasprice"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/internal/ethapi"
+	"github.com/ethereum/go-ethereum/les/vflux"
+	vfc "github.com/ethereum/go-ethereum/les/vflux/client"
+	"github.com/ethereum/go-ethereum/light"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 type LightEthereum struct {
@@ -64,7 +63,6 @@ type LightEthereum struct {
 	serverPool         *vfc.ServerPool
 	serverPoolIterator enode.Iterator
 	pruner             *pruner
-	merger             *consensus.Merger
 
 	bloomRequests chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	bloomIndexer  *core.ChainIndexer             // Bloom indexer operating during block imports
@@ -75,31 +73,27 @@ type LightEthereum struct {
 	accountManager *accounts.Manager
 	netRPCService  *ethapi.PublicNetAPI
 
-	p2pServer  *p2p.Server
-	p2pConfig  *p2p.Config
-	udpEnabled bool
-
-	shutdownTracker *shutdowncheck.ShutdownTracker // Tracks if and when the node has shutdown ungracefully
+	p2pServer *p2p.Server
+	p2pConfig *p2p.Config
 }
 
 // New creates an instance of the light client.
 func New(stack *node.Node, config *ethconfig.Config) (*LightEthereum, error) {
-	chainDb, err := stack.OpenDatabase("lightchaindata", config.DatabaseCache, config.DatabaseHandles, "eth/db/chaindata/", false)
+	chainDb, err := stack.OpenDatabase("lightchaindata", config.DatabaseCache, config.DatabaseHandles, "eth/db/chaindata/")
 	if err != nil {
 		return nil, err
 	}
-	lesDb, err := stack.OpenDatabase("les.client", 0, 0, "eth/db/lesclient/", false)
+	lesDb, err := stack.OpenDatabase("les.client", 0, 0, "eth/db/les.client")
 	if err != nil {
 		return nil, err
 	}
-	chainConfig, genesisHash, genesisErr := core.SetupGenesisBlockWithOverride(chainDb, config.Genesis, config.OverrideArrowGlacier, config.OverrideTerminalTotalDifficulty)
+	chainConfig, genesisHash, genesisErr := core.SetupGenesisBlockWithOverride(chainDb, config.Genesis, config.OverrideBerlin)
 	if _, isCompat := genesisErr.(*params.ConfigCompatError); genesisErr != nil && !isCompat {
 		return nil, genesisErr
 	}
 	log.Info("Initialised chain configuration", "config", chainConfig)
 
 	peers := newServerPeerSet()
-	merger := consensus.NewMerger(chainDb)
 	leth := &LightEthereum{
 		lesCommons: lesCommons{
 			genesis:     genesisHash,
@@ -110,22 +104,19 @@ func New(stack *node.Node, config *ethconfig.Config) (*LightEthereum, error) {
 			lesDb:       lesDb,
 			closeCh:     make(chan struct{}),
 		},
-		peers:           peers,
-		eventMux:        stack.EventMux(),
-		reqDist:         newRequestDistributor(peers, &mclock.System{}),
-		accountManager:  stack.AccountManager(),
-		merger:          merger,
-		engine:          ethconfig.CreateConsensusEngine(stack, chainConfig, &config.Ethash, nil, false, chainDb),
-		bloomRequests:   make(chan chan *bloombits.Retrieval),
-		bloomIndexer:    core.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
-		p2pServer:       stack.Server(),
-		p2pConfig:       &stack.Config().P2P,
-		udpEnabled:      stack.Config().P2P.DiscoveryV5,
-		shutdownTracker: shutdowncheck.NewShutdownTracker(chainDb),
+		peers:          peers,
+		eventMux:       stack.EventMux(),
+		reqDist:        newRequestDistributor(peers, &mclock.System{}),
+		accountManager: stack.AccountManager(),
+		engine:         ethconfig.CreateConsensusEngine(stack, chainConfig, &config.Ethash, nil, false, chainDb),
+		bloomRequests:  make(chan chan *bloombits.Retrieval),
+		bloomIndexer:   core.NewBloomIndexer(chainDb, params.BloomBitsBlocksClient, params.HelperTrieConfirmations),
+		p2pServer:      stack.Server(),
+		p2pConfig:      &stack.Config().P2P,
 	}
 
 	var prenegQuery vfc.QueryFunc
-	if leth.udpEnabled {
+	if leth.p2pServer.DiscV5 != nil {
 		prenegQuery = leth.prenegQuery
 	}
 	leth.serverPool, leth.serverPoolIterator = vfc.NewServerPool(lesDb, []byte("serverpool:"), time.Second, prenegQuery, &mclock.System{}, config.UltraLightServers, requestList)
@@ -189,15 +180,25 @@ func New(stack *node.Node, config *ethconfig.Config) (*LightEthereum, error) {
 	stack.RegisterProtocols(leth.Protocols())
 	stack.RegisterLifecycle(leth)
 
-	// Successful startup; push a marker and check previous unclean shutdowns.
-	leth.shutdownTracker.MarkStartup()
-
+	// Check for unclean shutdown
+	if uncleanShutdowns, discards, err := rawdb.PushUncleanShutdownMarker(chainDb); err != nil {
+		log.Error("Could not update unclean-shutdown-marker list", "error", err)
+	} else {
+		if discards > 0 {
+			log.Warn("Old unclean shutdowns found", "count", discards)
+		}
+		for _, tstamp := range uncleanShutdowns {
+			t := time.Unix(int64(tstamp), 0)
+			log.Warn("Unclean shutdown detected", "booted", t,
+				"age", common.PrettyAge(t))
+		}
+	}
 	return leth, nil
 }
 
 // VfluxRequest sends a batch of requests to the given node through discv5 UDP TalkRequest and returns the responses
 func (s *LightEthereum) VfluxRequest(n *enode.Node, reqs vflux.Requests) vflux.Replies {
-	if !s.udpEnabled {
+	if s.p2pServer.DiscV5 == nil {
 		return nil
 	}
 	reqsEnc, _ := rlp.EncodeToBytes(&reqs)
@@ -214,7 +215,7 @@ func (s *LightEthereum) VfluxRequest(n *enode.Node, reqs vflux.Requests) vflux.R
 func (s *LightEthereum) vfxVersion(n *enode.Node) uint {
 	if n.Seq() == 0 {
 		var err error
-		if !s.udpEnabled {
+		if s.p2pServer.DiscV5 == nil {
 			return 0
 		}
 		if n, err = s.p2pServer.DiscV5.RequestENR(n); n != nil && err == nil && n.Seq() != 0 {
@@ -329,7 +330,6 @@ func (s *LightEthereum) Engine() consensus.Engine           { return s.engine }
 func (s *LightEthereum) LesVersion() int                    { return int(ClientProtocolVersions[0]) }
 func (s *LightEthereum) Downloader() *downloader.Downloader { return s.handler.downloader }
 func (s *LightEthereum) EventMux() *event.TypeMux           { return s.eventMux }
-func (s *LightEthereum) Merger() *consensus.Merger          { return s.merger }
 
 // Protocols returns all the currently configured network protocols to start.
 func (s *LightEthereum) Protocols() []p2p.Protocol {
@@ -346,14 +346,7 @@ func (s *LightEthereum) Protocols() []p2p.Protocol {
 func (s *LightEthereum) Start() error {
 	log.Warn("Light client mode is an experimental feature")
 
-	// Regularly update shutdown marker
-	s.shutdownTracker.Start()
-
-	if s.udpEnabled && s.p2pServer.DiscV5 == nil {
-		s.udpEnabled = false
-		log.Error("Discovery v5 is not initialized")
-	}
-	discovery, err := s.setupDiscovery()
+	discovery, err := s.setupDiscovery(s.p2pConfig)
 	if err != nil {
 		return err
 	}
@@ -384,9 +377,7 @@ func (s *LightEthereum) Stop() error {
 	s.engine.Close()
 	s.pruner.close()
 	s.eventMux.Stop()
-	// Clean shutdown marker as the last thing before closing db
-	s.shutdownTracker.Stop()
-
+	rawdb.PopUncleanShutdownMarker(s.chainDb)
 	s.chainDb.Close()
 	s.lesDb.Close()
 	s.wg.Wait()

@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/EgonCoin/EgonChain/accounts"
-	"github.com/EgonCoin/EgonChain/accounts/keystore"
-	"github.com/EgonCoin/EgonChain/cmd/utils"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -268,15 +268,10 @@ func accountCreate(ctx *cli.Context) error {
 		}
 	}
 	utils.SetNodeConfig(ctx, &cfg.Node)
-	keydir, err := cfg.Node.KeyDirConfig()
+	scryptN, scryptP, keydir, err := cfg.Node.AccountConfig()
+
 	if err != nil {
 		utils.Fatalf("Failed to read configuration: %v", err)
-	}
-	scryptN := keystore.StandardScryptN
-	scryptP := keystore.StandardScryptP
-	if cfg.Node.UseLightweightKDF {
-		scryptN = keystore.LightScryptN
-		scryptP = keystore.LightScryptP
 	}
 
 	password := utils.GetPassPhraseWithList("Your new account is locked with a password. Please give a password. Do not forget this password.", true, 0, utils.MakePasswordList(ctx))

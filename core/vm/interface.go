@@ -19,8 +19,8 @@ package vm
 import (
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // StateDB is an EVM database for full state querying.

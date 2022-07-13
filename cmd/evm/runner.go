@@ -28,17 +28,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/cmd/evm/internal/compiler"
-	"github.com/EgonCoin/EgonChain/cmd/utils"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/state"
-	"github.com/EgonCoin/EgonChain/core/vm"
-	"github.com/EgonCoin/EgonChain/core/vm/runtime"
-	"github.com/EgonCoin/EgonChain/eth/tracers/logger"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/cmd/evm/internal/compiler"
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/core/vm/runtime"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -108,17 +107,17 @@ func runCmd(ctx *cli.Context) error {
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
 	glogger.Verbosity(log.Lvl(ctx.GlobalInt(VerbosityFlag.Name)))
 	log.Root().SetHandler(glogger)
-	logconfig := &logger.Config{
-		EnableMemory:     !ctx.GlobalBool(DisableMemoryFlag.Name),
-		DisableStack:     ctx.GlobalBool(DisableStackFlag.Name),
-		DisableStorage:   ctx.GlobalBool(DisableStorageFlag.Name),
-		EnableReturnData: !ctx.GlobalBool(DisableReturnDataFlag.Name),
-		Debug:            ctx.GlobalBool(DebugFlag.Name),
+	logconfig := &vm.LogConfig{
+		DisableMemory:     ctx.GlobalBool(DisableMemoryFlag.Name),
+		DisableStack:      ctx.GlobalBool(DisableStackFlag.Name),
+		DisableStorage:    ctx.GlobalBool(DisableStorageFlag.Name),
+		DisableReturnData: ctx.GlobalBool(DisableReturnDataFlag.Name),
+		Debug:             ctx.GlobalBool(DebugFlag.Name),
 	}
 
 	var (
-		tracer        vm.EVMLogger
-		debugLogger   *logger.StructLogger
+		tracer        vm.Tracer
+		debugLogger   *vm.StructLogger
 		statedb       *state.StateDB
 		chainConfig   *params.ChainConfig
 		sender        = common.BytesToAddress([]byte("sender"))
@@ -126,12 +125,12 @@ func runCmd(ctx *cli.Context) error {
 		genesisConfig *core.Genesis
 	)
 	if ctx.GlobalBool(MachineFlag.Name) {
-		tracer = logger.NewJSONLogger(logconfig, os.Stdout)
+		tracer = vm.NewJSONLogger(logconfig, os.Stdout)
 	} else if ctx.GlobalBool(DebugFlag.Name) {
-		debugLogger = logger.NewStructLogger(logconfig)
+		debugLogger = vm.NewStructLogger(logconfig)
 		tracer = debugLogger
 	} else {
-		debugLogger = logger.NewStructLogger(logconfig)
+		debugLogger = vm.NewStructLogger(logconfig)
 	}
 	if ctx.GlobalString(GenesisFlag.Name) != "" {
 		gen := readGenesis(ctx.GlobalString(GenesisFlag.Name))
@@ -212,8 +211,9 @@ func runCmd(ctx *cli.Context) error {
 		Coinbase:    genesisConfig.Coinbase,
 		BlockNumber: new(big.Int).SetUint64(genesisConfig.Number),
 		EVMConfig: vm.Config{
-			Tracer: tracer,
-			Debug:  ctx.GlobalBool(DebugFlag.Name) || ctx.GlobalBool(MachineFlag.Name),
+			Tracer:         tracer,
+			Debug:          ctx.GlobalBool(DebugFlag.Name) || ctx.GlobalBool(MachineFlag.Name),
+			EVMInterpreter: ctx.GlobalString(EVMInterpreterFlag.Name),
 		},
 	}
 
@@ -270,7 +270,7 @@ func runCmd(ctx *cli.Context) error {
 	if ctx.GlobalBool(DumpFlag.Name) {
 		statedb.Commit(true)
 		statedb.IntermediateRoot(true)
-		fmt.Println(string(statedb.Dump(nil)))
+		fmt.Println(string(statedb.Dump(false, false, true)))
 	}
 
 	if memProfilePath := ctx.GlobalString(MemProfileFlag.Name); memProfilePath != "" {
@@ -289,10 +289,10 @@ func runCmd(ctx *cli.Context) error {
 	if ctx.GlobalBool(DebugFlag.Name) {
 		if debugLogger != nil {
 			fmt.Fprintln(os.Stderr, "#### TRACE ####")
-			logger.WriteTrace(os.Stderr, debugLogger.StructLogs())
+			vm.WriteTrace(os.Stderr, debugLogger.StructLogs())
 		}
 		fmt.Fprintln(os.Stderr, "#### LOGS ####")
-		logger.WriteLogs(os.Stderr, statedb.Logs())
+		vm.WriteLogs(os.Stderr, statedb.Logs())
 	}
 
 	if bench || ctx.GlobalBool(StatDumpFlag.Name) {

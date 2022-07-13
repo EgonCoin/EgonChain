@@ -21,8 +21,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/les/utils"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/les/utils"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const (

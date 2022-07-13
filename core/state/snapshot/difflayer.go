@@ -26,8 +26,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
 	bloomfilter "github.com/holiman/bloomfilter/v2"
 )
 
@@ -296,17 +296,13 @@ func (dl *diffLayer) AccountRLP(hash common.Hash) ([]byte, error) {
 	if !hit {
 		hit = dl.diffed.Contains(destructBloomHasher(hash))
 	}
-	var origin *diskLayer
-	if !hit {
-		origin = dl.origin // extract origin while holding the lock
-	}
 	dl.lock.RUnlock()
 
 	// If the bloom filter misses, don't even bother with traversing the memory
 	// diff layers, reach straight into the bottom persistent disk layer
-	if origin != nil {
+	if !hit {
 		snapshotBloomAccountMissMeter.Mark(1)
-		return origin.AccountRLP(hash)
+		return dl.origin.AccountRLP(hash)
 	}
 	// The bloom filter hit, start poking in the internal maps
 	return dl.accountRLP(hash, 0)
@@ -362,17 +358,13 @@ func (dl *diffLayer) Storage(accountHash, storageHash common.Hash) ([]byte, erro
 	if !hit {
 		hit = dl.diffed.Contains(destructBloomHasher(accountHash))
 	}
-	var origin *diskLayer
-	if !hit {
-		origin = dl.origin // extract origin while holding the lock
-	}
 	dl.lock.RUnlock()
 
 	// If the bloom filter misses, don't even bother with traversing the memory
 	// diff layers, reach straight into the bottom persistent disk layer
-	if origin != nil {
+	if !hit {
 		snapshotBloomStorageMissMeter.Mark(1)
-		return origin.Storage(accountHash, storageHash)
+		return dl.origin.Storage(accountHash, storageHash)
 	}
 	// The bloom filter hit, start poking in the internal maps
 	return dl.storage(accountHash, storageHash, 0)

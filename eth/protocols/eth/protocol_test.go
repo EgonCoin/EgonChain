@@ -21,9 +21,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Tests that the custom union field encoder and decoder works correctly.
@@ -178,7 +178,7 @@ func TestEth66Messages(t *testing.T) {
 	// init the receipts
 	{
 		receipts = []*types.Receipt{
-			{
+			&types.Receipt{
 				Status:            types.ReceiptStatusFailed,
 				CumulativeGasUsed: 1,
 				Logs: []*types.Log{

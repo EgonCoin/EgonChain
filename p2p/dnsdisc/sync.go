@@ -21,8 +21,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 // This is the number of consecutive leaf requests that may fail before

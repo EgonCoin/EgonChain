@@ -21,8 +21,8 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/metrics"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/metrics"
 )
 
 // The fields below define the low level database schema prefixing.
@@ -45,11 +45,8 @@ var (
 	// fastTrieProgressKey tracks the number of trie entries imported during fast sync.
 	fastTrieProgressKey = []byte("TrieSync")
 
-	// snapshotDisabledKey flags that the snapshot should not be maintained due to initial sync.
-	snapshotDisabledKey = []byte("SnapshotDisabled")
-
-	// SnapshotRootKey tracks the hash of the last snapshot.
-	SnapshotRootKey = []byte("SnapshotRoot")
+	// snapshotRootKey tracks the hash of the last snapshot.
+	snapshotRootKey = []byte("SnapshotRoot")
 
 	// snapshotJournalKey tracks the in-memory diff layers across restarts.
 	snapshotJournalKey = []byte("SnapshotJournal")
@@ -75,9 +72,6 @@ var (
 	// uncleanShutdownKey tracks the list of local crashes
 	uncleanShutdownKey = []byte("unclean-shutdown") // config prefix for the db
 
-	// transitionStatusKey tracks the eth2 transition status.
-	transitionStatusKey = []byte("eth2-transition")
-
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
 	headerPrefix       = []byte("h") // headerPrefix + num (uint64 big endian) + hash -> header
 	headerTDSuffix     = []byte("t") // headerPrefix + num (uint64 big endian) + hash + headerTDSuffix -> td
@@ -93,7 +87,7 @@ var (
 	SnapshotStoragePrefix = []byte("o") // SnapshotStoragePrefix + account hash + storage hash -> storage trie value
 	CodePrefix            = []byte("c") // CodePrefix + code hash -> account code
 
-	PreimagePrefix = []byte("secure-key-")      // PreimagePrefix + hash -> preimage
+	preimagePrefix = []byte("secure-key-")      // preimagePrefix + hash -> preimage
 	configPrefix   = []byte("ethereum-config-") // config prefix for the db
 
 	// Chain index prefixes (use `i` + single byte to avoid mixing data types).
@@ -120,9 +114,9 @@ const (
 	freezerDifficultyTable = "diffs"
 )
 
-// FreezerNoSnappy configures whether compression is disabled for the ancient-tables.
+// freezerNoSnappy configures whether compression is disabled for the ancient-tables.
 // Hashes and difficulties don't compress well.
-var FreezerNoSnappy = map[string]bool{
+var freezerNoSnappy = map[string]bool{
 	freezerHeaderTable:     false,
 	freezerHashTable:       true,
 	freezerBodiesTable:     false,
@@ -210,9 +204,9 @@ func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
 	return key
 }
 
-// preimageKey = PreimagePrefix + hash
+// preimageKey = preimagePrefix + hash
 func preimageKey(hash common.Hash) []byte {
-	return append(PreimagePrefix, hash.Bytes()...)
+	return append(preimagePrefix, hash.Bytes()...)
 }
 
 // codeKey = CodePrefix + hash

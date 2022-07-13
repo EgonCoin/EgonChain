@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/common"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Type enumerator

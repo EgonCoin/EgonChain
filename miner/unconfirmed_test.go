@@ -19,7 +19,7 @@ package miner
 import (
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // noopChainRetriever is an implementation of headerRetriever that always

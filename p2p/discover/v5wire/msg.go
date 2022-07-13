@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Packet is implemented by all message types.
@@ -84,7 +84,7 @@ type (
 		ReqID  []byte
 		ENRSeq uint64
 		ToIP   net.IP // These fields should mirror the UDP envelope address of the ping
-		ToPort uint16 // packet, which provides a way to discover the external address (after NAT).
+		ToPort uint16 // packet, which provides a way to discover the the external address (after NAT).
 	}
 
 	// FINDNODE is a query for nodes in the given bucket.

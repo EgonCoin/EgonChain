@@ -23,8 +23,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/ethdb"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
 )
 
 var (
@@ -204,14 +204,14 @@ type batch struct {
 // Put inserts the given value into the batch for later committing.
 func (b *batch) Put(key, value []byte) error {
 	b.writes = append(b.writes, keyvalue{common.CopyBytes(key), common.CopyBytes(value), false})
-	b.size += len(key) + len(value)
+	b.size += len(value)
 	return nil
 }
 
 // Delete inserts the a key removal into the batch for later committing.
 func (b *batch) Delete(key []byte) error {
 	b.writes = append(b.writes, keyvalue{common.CopyBytes(key), nil, true})
-	b.size += len(key)
+	b.size += 1
 	return nil
 }
 

@@ -17,20 +17,19 @@
 package bind
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"errors"
 	"io"
 	"io/ioutil"
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/accounts"
-	"github.com/EgonCoin/EgonChain/accounts/external"
-	"github.com/EgonCoin/EgonChain/accounts/keystore"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/external"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // ErrNoChainID is returned whenever the user failed to specify a chain id.
@@ -75,7 +74,6 @@ func NewKeyStoreTransactor(keystore *keystore.KeyStore, account accounts.Account
 			}
 			return tx.WithSignature(signer, signature)
 		},
-		Context: context.Background(),
 	}, nil
 }
 
@@ -99,7 +97,6 @@ func NewKeyedTransactor(key *ecdsa.PrivateKey) *TransactOpts {
 			}
 			return tx.WithSignature(signer, signature)
 		},
-		Context: context.Background(),
 	}
 }
 
@@ -136,7 +133,6 @@ func NewKeyStoreTransactorWithChainID(keystore *keystore.KeyStore, account accou
 			}
 			return tx.WithSignature(signer, signature)
 		},
-		Context: context.Background(),
 	}, nil
 }
 
@@ -160,7 +156,6 @@ func NewKeyedTransactorWithChainID(key *ecdsa.PrivateKey, chainID *big.Int) (*Tr
 			}
 			return tx.WithSignature(signer, signature)
 		},
-		Context: context.Background(),
 	}, nil
 }
 
@@ -175,6 +170,5 @@ func NewClefTransactor(clef *external.ExternalSigner, account accounts.Account) 
 			}
 			return clef.SignTx(account, transaction, nil) // Clef enforces its own chain id
 		},
-		Context: context.Background(),
 	}
 }

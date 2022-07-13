@@ -22,9 +22,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/EgonCoin/EgonChain/common/fdlimit"
-	"github.com/EgonCoin/EgonChain/internal/flags"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/common/fdlimit"
+	"github.com/ethereum/go-ethereum/internal/flags"
+	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/urfave/cli.v1"
 )
 

@@ -29,16 +29,16 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/event"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/p2p/discover"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/p2p/nat"
-	"github.com/EgonCoin/EgonChain/p2p/netutil"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/p2p/nat"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 const (
@@ -353,7 +353,7 @@ func (srv *Server) RemovePeer(node *enode.Node) {
 	}
 }
 
-// AddTrustedPeer adds the given node to a reserved trusted list which allows the
+// AddTrustedPeer adds the given node to a reserved whitelist which allows the
 // node to always connect, even if the slot are full.
 func (srv *Server) AddTrustedPeer(node *enode.Node) {
 	select {
@@ -370,7 +370,7 @@ func (srv *Server) RemoveTrustedPeer(node *enode.Node) {
 	}
 }
 
-// SubscribeEvents subscribes the given channel to peer events
+// SubscribePeers subscribes the given channel to peer events
 func (srv *Server) SubscribeEvents(ch chan *PeerEvent) event.Subscription {
 	return srv.peerFeed.Subscribe(ch)
 }
@@ -876,8 +876,8 @@ func (srv *Server) listenLoop() {
 		}
 
 		remoteIP := netutil.AddrIP(fd.RemoteAddr())
-		if err := srv.checkInboundConn(remoteIP); err != nil {
-			srv.log.Debug("Rejected inbound connection", "addr", fd.RemoteAddr(), "err", err)
+		if err := srv.checkInboundConn(fd, remoteIP); err != nil {
+			srv.log.Debug("Rejected inbound connnection", "addr", fd.RemoteAddr(), "err", err)
 			fd.Close()
 			slots <- struct{}{}
 			continue
@@ -897,13 +897,13 @@ func (srv *Server) listenLoop() {
 	}
 }
 
-func (srv *Server) checkInboundConn(remoteIP net.IP) error {
+func (srv *Server) checkInboundConn(fd net.Conn, remoteIP net.IP) error {
 	if remoteIP == nil {
 		return nil
 	}
 	// Reject connections that do not match NetRestrict.
 	if srv.NetRestrict != nil && !srv.NetRestrict.Contains(remoteIP) {
-		return fmt.Errorf("not in netrestrict list")
+		return fmt.Errorf("not whitelisted in NetRestrict")
 	}
 	// Reject Internet peers that try too often.
 	now := srv.clock.Now()

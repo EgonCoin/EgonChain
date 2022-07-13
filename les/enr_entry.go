@@ -17,10 +17,11 @@
 package les
 
 import (
-	"github.com/EgonCoin/EgonChain/core/forkid"
-	"github.com/EgonCoin/EgonChain/p2p/dnsdisc"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // lesEntry is the "les" ENR entry. This is set for LES servers only.
@@ -35,13 +36,13 @@ func (lesEntry) ENRKey() string { return "les" }
 // ethEntry is the "eth" ENR entry. This is redeclared here to avoid depending on package eth.
 type ethEntry struct {
 	ForkID forkid.ID
-	Tail   []rlp.RawValue `rlp:"tail"`
+	_      []rlp.RawValue `rlp:"tail"`
 }
 
 func (ethEntry) ENRKey() string { return "eth" }
 
 // setupDiscovery creates the node discovery source for the eth protocol.
-func (eth *LightEthereum) setupDiscovery() (enode.Iterator, error) {
+func (eth *LightEthereum) setupDiscovery(cfg *p2p.Config) (enode.Iterator, error) {
 	it := enode.NewFairMix(0)
 
 	// Enable DNS discovery.
@@ -55,7 +56,7 @@ func (eth *LightEthereum) setupDiscovery() (enode.Iterator, error) {
 	}
 
 	// Enable DHT.
-	if eth.udpEnabled {
+	if cfg.DiscoveryV5 && eth.p2pServer.DiscV5 != nil {
 		it.AddSource(eth.p2pServer.DiscV5.RandomNodes())
 	}
 

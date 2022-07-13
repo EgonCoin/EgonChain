@@ -20,10 +20,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/consensus/ethash"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/vm"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // Tests that DAO-fork enabled clients can properly filter out fork-commencing
@@ -33,7 +33,7 @@ func TestDAOForkRangeExtradata(t *testing.T) {
 
 	// Generate a common prefix for both pro-forkers and non-forkers
 	db := rawdb.NewMemoryDatabase()
-	gspec := &Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}
+	gspec := new(Genesis)
 	genesis := gspec.MustCommit(db)
 	prefix, _ := GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, int(forkBlock.Int64()-1), func(i int, gen *BlockGen) {})
 

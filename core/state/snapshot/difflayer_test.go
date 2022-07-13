@@ -22,9 +22,9 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/fastcache"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/ethdb/memorydb"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 )
 
 func copyDestructs(destructs map[common.Hash]struct{}) map[common.Hash]struct{} {
@@ -388,7 +388,7 @@ func BenchmarkJournal(b *testing.B) {
 		}
 		return newDiffLayer(parent, common.Hash{}, destructs, accounts, storage)
 	}
-	layer := snapshot(emptyLayer())
+	layer := snapshot(new(diskLayer))
 	for i := 1; i < 128; i++ {
 		layer = fill(layer)
 	}

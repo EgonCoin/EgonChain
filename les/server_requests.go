@@ -20,15 +20,15 @@ import (
 	"encoding/binary"
 	"encoding/json"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/state"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/light"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/metrics"
-	"github.com/EgonCoin/EgonChain/rlp"
-	"github.com/EgonCoin/EgonChain/trie"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/light"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // serverBackend defines the backend functions needed for serving LES requests
@@ -206,8 +206,8 @@ func handleGetBlockHeaders(msg Decoder) (serveRequestFn, uint64, uint64, error) 
 					next    = current + r.Query.Skip + 1
 				)
 				if next <= current {
-					infos, _ := json.Marshal(p.Peer.Info())
-					p.Log().Warn("GetBlockHeaders skip overflow attack", "current", current, "skip", r.Query.Skip, "next", next, "attacker", string(infos))
+					infos, _ := json.MarshalIndent(p.Peer.Info(), "", "  ")
+					p.Log().Warn("GetBlockHeaders skip overflow attack", "current", current, "skip", r.Query.Skip, "next", next, "attacker", infos)
 					unknown = true
 				} else {
 					if header := bc.GetHeaderByNumber(next); header != nil {

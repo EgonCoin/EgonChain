@@ -21,9 +21,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/forkid"
-	"github.com/EgonCoin/EgonChain/p2p"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/p2p"
 )
 
 const (

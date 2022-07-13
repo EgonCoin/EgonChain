@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
+	"github.com/ethereum/go-ethereum/common/mclock"
 )
 
 type UpdateTimer struct {

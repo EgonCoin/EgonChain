@@ -29,9 +29,9 @@ import (
 	"testing"
 	"testing/quick"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to
@@ -126,7 +126,7 @@ func TestIntermediateLeaks(t *testing.T) {
 			t.Errorf("entry missing from the transition database: %x -> %x", key, fvalue)
 		}
 		if !bytes.Equal(fvalue, tvalue) {
-			t.Errorf("value mismatch at key %x: %x in transition database, %x in final database", key, tvalue, fvalue)
+			t.Errorf("the value associate key %x is mismatch,: %x in transition database ,%x in final database", key, tvalue, fvalue)
 		}
 	}
 	it.Release()
@@ -139,14 +139,14 @@ func TestIntermediateLeaks(t *testing.T) {
 			t.Errorf("extra entry in the transition database: %x -> %x", key, it.Value())
 		}
 		if !bytes.Equal(fvalue, tvalue) {
-			t.Errorf("value mismatch at key %x: %x in transition database, %x in final database", key, tvalue, fvalue)
+			t.Errorf("the value associate key %x is mismatch,: %x in transition database ,%x in final database", key, tvalue, fvalue)
 		}
 	}
 }
 
 // TestCopy tests that copying a StateDB object indeed makes the original and
 // the copy independent of each other. This test is a regression test against
-// https://github.com/EgonCoin/EgonChain/pull/15549.
+// https://github.com/ethereum/go-ethereum/pull/15549.
 func TestCopy(t *testing.T) {
 	// Create a random state test to copy and modify "independently"
 	orig, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
@@ -463,9 +463,9 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 		return fmt.Errorf("got GetRefund() == %d, want GetRefund() == %d",
 			state.GetRefund(), checkstate.GetRefund())
 	}
-	if !reflect.DeepEqual(state.GetLogs(common.Hash{}, common.Hash{}), checkstate.GetLogs(common.Hash{}, common.Hash{})) {
+	if !reflect.DeepEqual(state.GetLogs(common.Hash{}), checkstate.GetLogs(common.Hash{})) {
 		return fmt.Errorf("got GetLogs(common.Hash{}) == %v, want GetLogs(common.Hash{}) == %v",
-			state.GetLogs(common.Hash{}, common.Hash{}), checkstate.GetLogs(common.Hash{}, common.Hash{}))
+			state.GetLogs(common.Hash{}), checkstate.GetLogs(common.Hash{}))
 	}
 	return nil
 }
@@ -489,7 +489,7 @@ func TestTouchDelete(t *testing.T) {
 }
 
 // TestCopyOfCopy tests that modified objects are carried over to the copy, and the copy of the copy.
-// See https://github.com/EgonCoin/EgonChain/pull/15225#issuecomment-380191512
+// See https://github.com/ethereum/go-ethereum/pull/15225#issuecomment-380191512
 func TestCopyOfCopy(t *testing.T) {
 	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 	addr := common.HexToAddress("aaaa")
@@ -506,7 +506,7 @@ func TestCopyOfCopy(t *testing.T) {
 // Tests a regression where committing a copy lost some internal meta information,
 // leading to corrupted subsequent copies.
 //
-// See https://github.com/EgonCoin/EgonChain/issues/20106.
+// See https://github.com/ethereum/go-ethereum/issues/20106.
 func TestCopyCommitCopy(t *testing.T) {
 	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
@@ -578,7 +578,7 @@ func TestCopyCommitCopy(t *testing.T) {
 // Tests a regression where committing a copy lost some internal meta information,
 // leading to corrupted subsequent copies.
 //
-// See https://github.com/EgonCoin/EgonChain/issues/20106.
+// See https://github.com/ethereum/go-ethereum/issues/20106.
 func TestCopyCopyCommitCopy(t *testing.T) {
 	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
@@ -672,7 +672,7 @@ func TestDeleteCreateRevert(t *testing.T) {
 	// Create an initial state with a single contract
 	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
-	addr := common.BytesToAddress([]byte("so"))
+	addr := toAddr([]byte("so"))
 	state.SetBalance(addr, big.NewInt(1))
 
 	root, _ := state.Commit(false)
@@ -705,11 +705,11 @@ func TestMissingTrieNodes(t *testing.T) {
 	db := NewDatabase(memDb)
 	var root common.Hash
 	state, _ := New(common.Hash{}, db, nil)
-	addr := common.BytesToAddress([]byte("so"))
+	addr := toAddr([]byte("so"))
 	{
 		state.SetBalance(addr, big.NewInt(1))
 		state.SetCode(addr, []byte{1, 2, 3})
-		a2 := common.BytesToAddress([]byte("another"))
+		a2 := toAddr([]byte("another"))
 		state.SetBalance(a2, big.NewInt(100))
 		state.SetCode(a2, []byte{1, 2, 4})
 		root, _ = state.Commit(false)

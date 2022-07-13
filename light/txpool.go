@@ -23,15 +23,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/state"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/event"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 const (
@@ -503,25 +503,6 @@ func (pool *TxPool) Content() (map[common.Address]types.Transactions, map[common
 	// There are no queued transactions in a light pool, just return an empty map
 	queued := make(map[common.Address]types.Transactions)
 	return pending, queued
-}
-
-// ContentFrom retrieves the data content of the transaction pool, returning the
-// pending as well as queued transactions of this address, grouped by nonce.
-func (pool *TxPool) ContentFrom(addr common.Address) (types.Transactions, types.Transactions) {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
-
-	// Retrieve the pending transactions and sort by nonce
-	var pending types.Transactions
-	for _, tx := range pool.pending {
-		account, _ := types.Sender(pool.signer, tx)
-		if account != addr {
-			continue
-		}
-		pending = append(pending, tx)
-	}
-	// There are no queued transactions in a light pool, just return an empty map
-	return pending, types.Transactions{}
 }
 
 // RemoveTransactions removes all given transactions from the pool.

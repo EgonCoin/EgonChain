@@ -41,23 +41,23 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/accounts"
-	"github.com/EgonCoin/EgonChain/accounts/keystore"
-	"github.com/EgonCoin/EgonChain/cmd/utils"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/eth/downloader"
-	"github.com/EgonCoin/EgonChain/eth/ethconfig"
-	"github.com/EgonCoin/EgonChain/ethclient"
-	"github.com/EgonCoin/EgonChain/ethstats"
-	"github.com/EgonCoin/EgonChain/les"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/node"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/nat"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/cmd/utils"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/ethstats"
+	"github.com/ethereum/go-ethereum/les"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/nat"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/gorilla/websocket"
 )
 
@@ -85,9 +85,6 @@ var (
 
 	twitterTokenFlag   = flag.String("twitter.token", "", "Bearer token to authenticate with the v2 Twitter API")
 	twitterTokenV1Flag = flag.String("twitter.token.v1", "", "Bearer token to authenticate with the v1.1 Twitter API")
-
-	goerliFlag  = flag.Bool("goerli", false, "Initializes the faucet with Görli network config")
-	rinkebyFlag = flag.Bool("rinkeby", false, "Initializes the faucet with Rinkeby network config")
 )
 
 var (
@@ -147,9 +144,13 @@ func main() {
 		log.Crit("Failed to render the faucet template", "err", err)
 	}
 	// Load and parse the genesis block requested by the user
-	genesis, err := getGenesis(genesisFlag, *goerliFlag, *rinkebyFlag)
+	blob, err := ioutil.ReadFile(*genesisFlag)
 	if err != nil {
-		log.Crit("Failed to parse genesis config", "err", err)
+		log.Crit("Failed to read genesis block contents", "genesis", *genesisFlag, "err", err)
+	}
+	genesis := new(core.Genesis)
+	if err = json.Unmarshal(blob, genesis); err != nil {
+		log.Crit("Failed to parse genesis block json", "err", err)
 	}
 	// Convert the bootnodes to internal enode representations
 	var enodes []*enode.Node
@@ -161,8 +162,7 @@ func main() {
 		}
 	}
 	// Load up the account key and decrypt its password
-	blob, err := ioutil.ReadFile(*accPassFlag)
-	if err != nil {
+	if blob, err = ioutil.ReadFile(*accPassFlag); err != nil {
 		log.Crit("Failed to read account password contents", "file", *accPassFlag, "err", err)
 	}
 	pass := strings.TrimSuffix(string(blob), "\n")
@@ -469,7 +469,7 @@ func (f *faucet) apiHandler(w http.ResponseWriter, r *http.Request) {
 			id = username
 		default:
 			//lint:ignore ST1005 This error is to be displayed in the browser
-			err = errors.New("Something funky happened, please open an issue at https://github.com/EgonCoin/EgonChain/issues")
+			err = errors.New("Something funky happened, please open an issue at https://github.com/ethereum/go-ethereum/issues")
 		}
 		if err != nil {
 			if err = sendError(wsconn, err); err != nil {
@@ -741,7 +741,7 @@ func authTwitter(url string, tokenV1, tokenV2 string) (string, string, string, c
 		return "", "", "", common.Address{}, errors.New("No Ethereum address found to fund")
 	}
 	var avatar string
-	if parts = regexp.MustCompile(`src="([^"]+twimg\.com/profile_images[^"]+)"`).FindStringSubmatch(string(body)); len(parts) == 2 {
+	if parts = regexp.MustCompile("src=\"([^\"]+twimg.com/profile_images[^\"]+)\"").FindStringSubmatch(string(body)); len(parts) == 2 {
 		avatar = parts[1]
 	}
 	return username + "@twitter", username, avatar, address, nil
@@ -867,7 +867,7 @@ func authFacebook(url string) (string, string, common.Address, error) {
 		return "", "", common.Address{}, errors.New("No Ethereum address found to fund")
 	}
 	var avatar string
-	if parts = regexp.MustCompile(`src="([^"]+fbcdn\.net[^"]+)"`).FindStringSubmatch(string(body)); len(parts) == 2 {
+	if parts = regexp.MustCompile("src=\"([^\"]+fbcdn.net[^\"]+)\"").FindStringSubmatch(string(body)); len(parts) == 2 {
 		avatar = parts[1]
 	}
 	return username + "@facebook", avatar, address, nil
@@ -883,20 +883,4 @@ func authNoAuth(url string) (string, string, common.Address, error) {
 		return "", "", common.Address{}, errors.New("No Ethereum address found to fund")
 	}
 	return address.Hex() + "@noauth", "", address, nil
-}
-
-// getGenesis returns a genesis based on input args
-func getGenesis(genesisFlag *string, goerliFlag bool, rinkebyFlag bool) (*core.Genesis, error) {
-	switch {
-	case genesisFlag != nil:
-		var genesis core.Genesis
-		err := common.LoadJSON(*genesisFlag, &genesis)
-		return &genesis, err
-	case goerliFlag:
-		return core.DefaultGoerliGenesisBlock(), nil
-	case rinkebyFlag:
-		return core.DefaultRinkebyGenesisBlock(), nil
-	default:
-		return nil, fmt.Errorf("no genesis flag provided")
-	}
 }

@@ -26,7 +26,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/common/math"
+	"github.com/ethereum/go-ethereum/common/math"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -45,7 +45,7 @@ func (s *DirectoryString) Set(value string) error {
 }
 
 // Custom cli.Flag type which expand the received string to an absolute path.
-// e.g. ~/.egoncoin -> /home/username/.egoncoin
+// e.g. ~/.ethereum -> /home/username/.ethereum
 type DirectoryFlag struct {
 	Name   string
 	Value  DirectoryString

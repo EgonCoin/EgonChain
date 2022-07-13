@@ -20,7 +20,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // StartIPCEndpoint starts an IPC endpoint.

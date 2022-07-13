@@ -17,10 +17,11 @@
 package eth
 
 import (
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/forkid"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/p2p/dnsdisc"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // ethEntry is the "eth" ENR entry which advertises eth protocol
@@ -60,4 +61,14 @@ func (eth *Ethereum) startEthEntryUpdate(ln *enode.LocalNode) {
 func (eth *Ethereum) currentEthEntry() *ethEntry {
 	return &ethEntry{ForkID: forkid.NewID(eth.blockchain.Config(), eth.blockchain.Genesis().Hash(),
 		eth.blockchain.CurrentHeader().Number.Uint64())}
+}
+
+// setupDiscovery creates the node discovery source for the `eth` and `snap`
+// protocols.
+func setupDiscovery(urls []string) (enode.Iterator, error) {
+	if len(urls) == 0 {
+		return nil, nil
+	}
+	client := dnsdisc.NewClient(dnsdisc.Config{})
+	return client.NewIterator(urls...)
 }

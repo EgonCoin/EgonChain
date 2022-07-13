@@ -22,7 +22,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func init() {

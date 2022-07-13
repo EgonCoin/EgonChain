@@ -22,7 +22,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/core/asm"
+	"github.com/ethereum/go-ethereum/core/asm"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -46,7 +46,7 @@ func disasmCmd(ctx *cli.Context) error {
 	case ctx.GlobalIsSet(InputFlag.Name):
 		in = ctx.GlobalString(InputFlag.Name)
 	default:
-		return errors.New("missing filename or --input value")
+		return errors.New("Missing filename or --input value")
 	}
 
 	code := strings.TrimSpace(in)

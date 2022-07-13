@@ -23,12 +23,12 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/fastcache"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/ethdb/leveldb"
-	"github.com/EgonCoin/EgonChain/ethdb/memorydb"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/ethdb/leveldb"
+	"github.com/ethereum/go-ethereum/ethdb/memorydb"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // reverse reverses the contents of a byte slice. It's used to update random accs
@@ -524,7 +524,7 @@ func TestDiskSeek(t *testing.T) {
 		t.Fatal(err)
 	} else {
 		defer os.RemoveAll(dir)
-		diskdb, err := leveldb.New(dir, 256, 0, "", false)
+		diskdb, err := leveldb.New(dir, 256, 0, "")
 		if err != nil {
 			t.Fatal(err)
 		}

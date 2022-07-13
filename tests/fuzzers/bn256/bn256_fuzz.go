@@ -12,12 +12,12 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/consensys/gnark-crypto/ecc/bn254"
-	cloudflare "github.com/EgonCoin/EgonChain/crypto/bn256/cloudflare"
-	google "github.com/EgonCoin/EgonChain/crypto/bn256/google"
+	gurvy "github.com/consensys/gurvy/bn256"
+	cloudflare "github.com/ethereum/go-ethereum/crypto/bn256/cloudflare"
+	google "github.com/ethereum/go-ethereum/crypto/bn256/google"
 )
 
-func getG1Points(input io.Reader) (*cloudflare.G1, *google.G1, *bn254.G1Affine) {
+func getG1Points(input io.Reader) (*cloudflare.G1, *google.G1, *gurvy.G1Affine) {
 	_, xc, err := cloudflare.RandomG1(input)
 	if err != nil {
 		// insufficient input
@@ -25,16 +25,16 @@ func getG1Points(input io.Reader) (*cloudflare.G1, *google.G1, *bn254.G1Affine) 
 	}
 	xg := new(google.G1)
 	if _, err := xg.Unmarshal(xc.Marshal()); err != nil {
-		panic(fmt.Sprintf("Could not marshal cloudflare -> google: %v", err))
+		panic(fmt.Sprintf("Could not marshal cloudflare -> google:", err))
 	}
-	xs := new(bn254.G1Affine)
+	xs := new(gurvy.G1Affine)
 	if err := xs.Unmarshal(xc.Marshal()); err != nil {
-		panic(fmt.Sprintf("Could not marshal cloudflare -> gnark: %v", err))
+		panic(fmt.Sprintf("Could not marshal cloudflare -> consensys:", err))
 	}
 	return xc, xg, xs
 }
 
-func getG2Points(input io.Reader) (*cloudflare.G2, *google.G2, *bn254.G2Affine) {
+func getG2Points(input io.Reader) (*cloudflare.G2, *google.G2, *gurvy.G2Affine) {
 	_, xc, err := cloudflare.RandomG2(input)
 	if err != nil {
 		// insufficient input
@@ -42,11 +42,11 @@ func getG2Points(input io.Reader) (*cloudflare.G2, *google.G2, *bn254.G2Affine) 
 	}
 	xg := new(google.G2)
 	if _, err := xg.Unmarshal(xc.Marshal()); err != nil {
-		panic(fmt.Sprintf("Could not marshal cloudflare -> google: %v", err))
+		panic(fmt.Sprintf("Could not marshal cloudflare -> google:", err))
 	}
-	xs := new(bn254.G2Affine)
+	xs := new(gurvy.G2Affine)
 	if err := xs.Unmarshal(xc.Marshal()); err != nil {
-		panic(fmt.Sprintf("Could not marshal cloudflare -> gnark: %v", err))
+		panic(fmt.Sprintf("Could not marshal cloudflare -> consensys:", err))
 	}
 	return xc, xg, xs
 }
@@ -70,16 +70,16 @@ func FuzzAdd(data []byte) int {
 	rg := new(google.G1)
 	rg.Add(xg, yg)
 
-	tmpX := new(bn254.G1Jac).FromAffine(xs)
-	tmpY := new(bn254.G1Jac).FromAffine(ys)
-	rs := new(bn254.G1Affine).FromJacobian(tmpX.AddAssign(tmpY))
+	tmpX := new(gurvy.G1Jac).FromAffine(xs)
+	tmpY := new(gurvy.G1Jac).FromAffine(ys)
+	rs := new(gurvy.G1Affine).FromJacobian(tmpX.AddAssign(tmpY))
 
 	if !bytes.Equal(rc.Marshal(), rg.Marshal()) {
 		panic("add mismatch: cloudflare/google")
 	}
 
 	if !bytes.Equal(rc.Marshal(), rs.Marshal()) {
-		panic("add mismatch: cloudflare/gnark")
+		panic("add mismatch: cloudflare/consensys")
 	}
 	return 1
 }
@@ -112,16 +112,16 @@ func FuzzMul(data []byte) int {
 	rg := new(google.G1)
 	rg.ScalarMult(pg, new(big.Int).SetBytes(buf))
 
-	rs := new(bn254.G1Jac)
-	psJac := new(bn254.G1Jac).FromAffine(ps)
+	rs := new(gurvy.G1Jac)
+	psJac := new(gurvy.G1Jac).FromAffine(ps)
 	rs.ScalarMultiplication(psJac, new(big.Int).SetBytes(buf))
-	rsAffine := new(bn254.G1Affine).FromJacobian(rs)
+	rsAffine := new(gurvy.G1Affine).FromJacobian(rs)
 
 	if !bytes.Equal(rc.Marshal(), rg.Marshal()) {
 		panic("scalar mul mismatch: cloudflare/google")
 	}
 	if !bytes.Equal(rc.Marshal(), rsAffine.Marshal()) {
-		panic("scalar mul mismatch: cloudflare/gnark")
+		panic("scalar mul mismatch: cloudflare/consensys")
 	}
 	return 1
 }
@@ -136,20 +136,18 @@ func FuzzPair(data []byte) int {
 	if tc == nil {
 		return 0
 	}
-
 	// Pair the two points and ensure they result in the same output
-	clPair := cloudflare.Pair(pc, tc).Marshal()
-	gPair := google.Pair(pg, tg).Marshal()
-	if !bytes.Equal(clPair, gPair) {
+	clPair := cloudflare.PairingCheck([]*cloudflare.G1{pc}, []*cloudflare.G2{tc})
+	if clPair != google.PairingCheck([]*google.G1{pg}, []*google.G2{tg}) {
 		panic("pairing mismatch: cloudflare/google")
 	}
 
-	cPair, err := bn254.Pair([]bn254.G1Affine{*ps}, []bn254.G2Affine{*ts})
+	coPair, err := gurvy.PairingCheck([]gurvy.G1Affine{*ps}, []gurvy.G2Affine{*ts})
 	if err != nil {
-		panic(fmt.Sprintf("gnark/bn254 encountered error: %v", err))
+		panic(fmt.Sprintf("gurvy encountered error: %v", err))
 	}
-	if !bytes.Equal(clPair, cPair.Marshal()) {
-		panic("pairing mismatch: cloudflare/gnark")
+	if clPair != coPair {
+		panic("pairing mismatch: cloudflare/consensys")
 	}
 
 	return 1

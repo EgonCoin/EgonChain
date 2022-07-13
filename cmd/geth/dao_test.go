@@ -23,9 +23,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // Genesis block for nodes which don't care about the DAO fork (i.e. not configured)
@@ -123,13 +123,13 @@ func testDAOForkBlockNewChain(t *testing.T, test int, genesis string, expectBloc
 	}
 	// Retrieve the DAO config flag from the database
 	path := filepath.Join(datadir, "geth", "chaindata")
-	db, err := rawdb.NewLevelDBDatabase(path, 0, 0, "", false)
+	db, err := rawdb.NewLevelDBDatabase(path, 0, 0, "")
 	if err != nil {
 		t.Fatalf("test %d: failed to open test database: %v", test, err)
 	}
 	defer db.Close()
 
-	genesisHash := common.HexToHash("0x9819dedc98ccef736e62633ccece431cb17a741aa3f4ce039cfcbb552e15c647")
+	genesisHash := common.HexToHash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")
 	if genesis != "" {
 		genesisHash = daoGenesisHash
 	}

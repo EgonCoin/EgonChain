@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/EgonCoin/EgonChain/node"
+	"github.com/ethereum/go-ethereum/node"
 )
 
 // SampleLifecycle is a trivial network service that can be attached to a node for

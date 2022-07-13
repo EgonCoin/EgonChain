@@ -25,22 +25,16 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/state"
-	"github.com/EgonCoin/EgonChain/crypto"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var dumper = spew.ConfigState{Indent: "    "}
 
 func accountRangeTest(t *testing.T, trie *state.Trie, statedb *state.StateDB, start common.Hash, requestedNum int, expectedNum int) state.IteratorDump {
-	result := statedb.IteratorDump(&state.DumpConfig{
-		SkipCode:          true,
-		SkipStorage:       true,
-		OnlyWithAddresses: false,
-		Start:             start.Bytes(),
-		Max:               uint64(requestedNum),
-	})
+	result := statedb.IteratorDump(true, true, false, start.Bytes(), requestedNum)
 
 	if len(result.Accounts) != expectedNum {
 		t.Fatalf("expected %d results, got %d", expectedNum, len(result.Accounts))
@@ -137,17 +131,12 @@ func TestEmptyAccountRange(t *testing.T) {
 	t.Parallel()
 
 	var (
-		statedb = state.NewDatabase(rawdb.NewMemoryDatabase())
-		st, _   = state.New(common.Hash{}, statedb, nil)
+		statedb  = state.NewDatabase(rawdb.NewMemoryDatabase())
+		state, _ = state.New(common.Hash{}, statedb, nil)
 	)
-	st.Commit(true)
-	st.IntermediateRoot(true)
-	results := st.IteratorDump(&state.DumpConfig{
-		SkipCode:          true,
-		SkipStorage:       true,
-		OnlyWithAddresses: true,
-		Max:               uint64(AccountRangeMaxResults),
-	})
+	state.Commit(true)
+	state.IntermediateRoot(true)
+	results := state.IteratorDump(true, true, true, (common.Hash{}).Bytes(), AccountRangeMaxResults)
 	if bytes.Equal(results.Next, (common.Hash{}).Bytes()) {
 		t.Fatalf("Empty results should not return a second page")
 	}

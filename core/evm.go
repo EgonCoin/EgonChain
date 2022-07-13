@@ -19,10 +19,10 @@ package core
 import (
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/consensus"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/core/vm"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
@@ -37,23 +37,12 @@ type ChainContext interface {
 
 // NewEVMBlockContext creates a new context for use in the EVM.
 func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common.Address) vm.BlockContext {
-	var (
-		beneficiary common.Address
-		baseFee     *big.Int
-		random      *common.Hash
-	)
-
 	// If we don't have an explicit author (i.e. not mining), extract from the header
+	var beneficiary common.Address
 	if author == nil {
 		beneficiary, _ = chain.Engine().Author(header) // Ignore error, we're past header validation
 	} else {
 		beneficiary = *author
-	}
-	if header.BaseFee != nil {
-		baseFee = new(big.Int).Set(header.BaseFee)
-	}
-	if header.Difficulty.Cmp(common.Big0) == 0 {
-		random = &header.MixDigest
 	}
 	return vm.BlockContext{
 		CanTransfer: CanTransfer,
@@ -63,9 +52,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		BlockNumber: new(big.Int).Set(header.Number),
 		Time:        new(big.Int).SetUint64(header.Time),
 		Difficulty:  new(big.Int).Set(header.Difficulty),
-		BaseFee:     baseFee,
 		GasLimit:    header.GasLimit,
-		Random:      random,
 	}
 }
 

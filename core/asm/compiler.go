@@ -22,8 +22,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/common/math"
-	"github.com/EgonCoin/EgonChain/core/vm"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/core/vm"
 )
 
 // Compiler contains information about the parsed source

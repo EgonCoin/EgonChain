@@ -19,10 +19,10 @@ package core
 import (
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // insertStats tracks and reports on block insertion.
@@ -148,14 +148,6 @@ func (it *insertIterator) previous() *types.Header {
 		return nil
 	}
 	return it.chain[it.index-1].Header()
-}
-
-// current returns the current header that is being processed, or nil.
-func (it *insertIterator) current() *types.Header {
-	if it.index == -1 || it.index >= len(it.chain) {
-		return nil
-	}
-	return it.chain[it.index].Header()
 }
 
 // first returns the first block in the it.

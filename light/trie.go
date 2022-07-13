@@ -21,14 +21,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/state"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/rlp"
-	"github.com/EgonCoin/EgonChain/trie"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 var (
@@ -112,17 +111,6 @@ func (t *odrTrie) TryGet(key []byte) ([]byte, error) {
 	return res, err
 }
 
-func (t *odrTrie) TryUpdateAccount(key []byte, acc *types.StateAccount) error {
-	key = crypto.Keccak256(key)
-	value, err := rlp.EncodeToBytes(acc)
-	if err != nil {
-		return fmt.Errorf("decoding error in account update: %w", err)
-	}
-	return t.do(key, func() error {
-		return t.trie.TryUpdate(key, value)
-	})
-}
-
 func (t *odrTrie) TryUpdate(key, value []byte) error {
 	key = crypto.Keccak256(key)
 	return t.do(key, func() error {
@@ -137,9 +125,9 @@ func (t *odrTrie) TryDelete(key []byte) error {
 	})
 }
 
-func (t *odrTrie) Commit(onleaf trie.LeafCallback) (common.Hash, int, error) {
+func (t *odrTrie) Commit(onleaf trie.LeafCallback) (common.Hash, error) {
 	if t.trie == nil {
-		return t.id.Root, 0, nil
+		return t.id.Root, nil
 	}
 	return t.trie.Commit(onleaf)
 }

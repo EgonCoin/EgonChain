@@ -26,12 +26,17 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/external"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/accounts/scwallet"
+	"github.com/ethereum/go-ethereum/accounts/usbwallet"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/rpc"
 )
 
 const (
@@ -88,7 +93,6 @@ type Config struct {
 	InsecureUnlockAllowed bool `toml:",omitempty"`
 
 	// NoUSB disables hardware wallet monitoring and connectivity.
-	// Deprecated: USB monitoring is disabled by default and must be enabled explicitly.
 	NoUSB bool `toml:",omitempty"`
 
 	// USB enables hardware wallet monitoring and connectivity.
@@ -425,8 +429,15 @@ func (c *Config) parsePersistentNodes(w *bool, path string) []*enode.Node {
 	return nodes
 }
 
-// KeyDirConfig determines the settings for keydirectory
-func (c *Config) KeyDirConfig() (string, error) {
+// AccountConfig determines the settings for scrypt and keydirectory
+func (c *Config) AccountConfig() (int, int, string, error) {
+	scryptN := keystore.StandardScryptN
+	scryptP := keystore.StandardScryptP
+	if c.UseLightweightKDF {
+		scryptN = keystore.LightScryptN
+		scryptP = keystore.LightScryptP
+	}
+
 	var (
 		keydir string
 		err    error
@@ -443,31 +454,71 @@ func (c *Config) KeyDirConfig() (string, error) {
 	case c.KeyStoreDir != "":
 		keydir, err = filepath.Abs(c.KeyStoreDir)
 	}
-	return keydir, err
+	return scryptN, scryptP, keydir, err
 }
 
-// getKeyStoreDir retrieves the key directory and will create
-// and ephemeral one if necessary.
-func getKeyStoreDir(conf *Config) (string, bool, error) {
-	keydir, err := conf.KeyDirConfig()
-	if err != nil {
-		return "", false, err
-	}
-	isEphemeral := false
+func makeAccountManager(conf *Config) (*accounts.Manager, string, error) {
+	scryptN, scryptP, keydir, err := conf.AccountConfig()
+	var ephemeral string
 	if keydir == "" {
 		// There is no datadir.
 		keydir, err = ioutil.TempDir("", "go-ethereum-keystore")
-		isEphemeral = true
+		ephemeral = keydir
 	}
 
 	if err != nil {
-		return "", false, err
+		return nil, "", err
 	}
 	if err := os.MkdirAll(keydir, 0700); err != nil {
-		return "", false, err
+		return nil, "", err
+	}
+	// Assemble the account manager and supported backends
+	var backends []accounts.Backend
+	if len(conf.ExternalSigner) > 0 {
+		log.Info("Using external signer", "url", conf.ExternalSigner)
+		if extapi, err := external.NewExternalBackend(conf.ExternalSigner); err == nil {
+			backends = append(backends, extapi)
+		} else {
+			return nil, "", fmt.Errorf("error connecting to external signer: %v", err)
+		}
+	}
+	if len(backends) == 0 {
+		// For now, we're using EITHER external signer OR local signers.
+		// If/when we implement some form of lockfile for USB and keystore wallets,
+		// we can have both, but it's very confusing for the user to see the same
+		// accounts in both externally and locally, plus very racey.
+		backends = append(backends, keystore.NewKeyStore(keydir, scryptN, scryptP))
+		if conf.USB {
+			// Start a USB hub for Ledger hardware wallets
+			if ledgerhub, err := usbwallet.NewLedgerHub(); err != nil {
+				log.Warn(fmt.Sprintf("Failed to start Ledger hub, disabling: %v", err))
+			} else {
+				backends = append(backends, ledgerhub)
+			}
+			// Start a USB hub for Trezor hardware wallets (HID version)
+			if trezorhub, err := usbwallet.NewTrezorHubWithHID(); err != nil {
+				log.Warn(fmt.Sprintf("Failed to start HID Trezor hub, disabling: %v", err))
+			} else {
+				backends = append(backends, trezorhub)
+			}
+			// Start a USB hub for Trezor hardware wallets (WebUSB version)
+			if trezorhub, err := usbwallet.NewTrezorHubWithWebUSB(); err != nil {
+				log.Warn(fmt.Sprintf("Failed to start WebUSB Trezor hub, disabling: %v", err))
+			} else {
+				backends = append(backends, trezorhub)
+			}
+		}
+		if len(conf.SmartCardDaemonPath) > 0 {
+			// Start a smart card hub
+			if schub, err := scwallet.NewHub(conf.SmartCardDaemonPath, scwallet.Scheme, keydir); err != nil {
+				log.Warn(fmt.Sprintf("Failed to start smart card hub, disabling: %v", err))
+			} else {
+				backends = append(backends, schub)
+			}
+		}
 	}
 
-	return keydir, isEphemeral, nil
+	return accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: conf.InsecureUnlockAllowed}, backends...), ephemeral, nil
 }
 
 var warnLock sync.Mutex

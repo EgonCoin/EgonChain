@@ -20,11 +20,11 @@ import (
 	"crypto/ecdsa"
 	"net"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/p2p/netutil"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/p2p/netutil"
 )
 
 // UDPConn is a network connection on which discovery can operate.
@@ -41,7 +41,7 @@ type Config struct {
 	PrivateKey *ecdsa.PrivateKey
 
 	// These settings are optional:
-	NetRestrict  *netutil.Netlist   // list of allowed IP networks
+	NetRestrict  *netutil.Netlist   // network whitelist
 	Bootnodes    []*enode.Node      // list of bootstrap nodes
 	Unhandled    chan<- ReadPacket  // unhandled packets are sent on this channel
 	Log          log.Logger         // if set, log messages go here

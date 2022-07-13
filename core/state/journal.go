@@ -19,7 +19,7 @@ package state
 import (
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/common"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // journalEntry is a modification entry in the state change journal that can be
@@ -33,14 +33,14 @@ type journalEntry interface {
 }
 
 // journal contains the list of state modifications applied since the last state
-// commit. These are tracked to be able to be reverted in the case of an execution
-// exception or request for reversal.
+// commit. These are tracked to be able to be reverted in case of an execution
+// exception or revertal request.
 type journal struct {
 	entries []journalEntry         // Current changes tracked by the journal
 	dirties map[common.Address]int // Dirty accounts and the number of changes
 }
 
-// newJournal creates a new initialized journal.
+// newJournal create a new initialized journal.
 func newJournal() *journal {
 	return &journal{
 		dirties: make(map[common.Address]int),

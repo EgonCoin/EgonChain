@@ -27,12 +27,12 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/accounts"
-	"github.com/EgonCoin/EgonChain/accounts/usbwallet/trezor"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/usbwallet/trezor"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -183,10 +183,6 @@ func (w *trezorDriver) SignTx(path accounts.DerivationPath, tx *types.Transactio
 		return common.Address{}, nil, accounts.ErrWalletClosed
 	}
 	return w.trezorSign(path, tx, chainID)
-}
-
-func (w *trezorDriver) SignTypedMessage(path accounts.DerivationPath, domainHash []byte, messageHash []byte) ([]byte, error) {
-	return nil, accounts.ErrNotSupported
 }
 
 // trezorDerive sends a derivation request to the Trezor device and returns the

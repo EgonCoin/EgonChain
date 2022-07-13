@@ -17,30 +17,35 @@
 package les
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/forkid"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/les/flowcontrol"
-	"github.com/EgonCoin/EgonChain/light"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/metrics"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/rlp"
-	"github.com/EgonCoin/EgonChain/trie"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/forkid"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
+	vfs "github.com/ethereum/go-ethereum/les/vflux/server"
+	"github.com/ethereum/go-ethereum/light"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/nodestate"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 const (
 	softResponseLimit = 2 * 1024 * 1024 // Target maximum size of returned blocks, headers or node data.
 	estHeaderRlpSize  = 500             // Approximate size of an RLP encoded block header
+	ethVersion        = 64              // equivalent eth version for the downloader
 
 	MaxHeaderFetch           = 192 // Amount of block headers to be fetched per retrieval request
 	MaxBodyFetch             = 32  // Amount of block bodies to be fetched per retrieval request
@@ -54,6 +59,7 @@ const (
 
 var (
 	errTooManyInvalidRequest = errors.New("too many invalid requests made")
+	errFullClientPool        = errors.New("client pool is full")
 )
 
 // serverHandler is responsible for serving light client and process
@@ -122,47 +128,64 @@ func (h *serverHandler) handle(p *clientPeer) error {
 		p.Log().Debug("Light Ethereum handshake failed", "err", err)
 		return err
 	}
-	// Connected to another server, no messages expected, just wait for disconnection
-	if p.server {
-		if err := h.server.serverset.register(p); err != nil {
-			return err
+	// Reject the duplicated peer, otherwise register it to peerset.
+	var registered bool
+	if err := h.server.ns.Operation(func() {
+		if h.server.ns.GetField(p.Node(), clientPeerField) != nil {
+			registered = true
+		} else {
+			h.server.ns.SetFieldSub(p.Node(), clientPeerField, p)
 		}
-		_, err := p.rw.ReadMsg()
-		h.server.serverset.unregister(p)
+	}); err != nil {
 		return err
 	}
-	// Setup flow control mechanism for the peer
-	p.fcClient = flowcontrol.NewClientNode(h.server.fcManager, p.fcParams)
-	defer p.fcClient.Disconnect()
+	if registered {
+		return errAlreadyRegistered
+	}
 
-	// Reject light clients if server is not synced. Put this checking here, so
-	// that "non-synced" les-server peers are still allowed to keep the connection.
+	defer func() {
+		h.server.ns.SetField(p.Node(), clientPeerField, nil)
+		if p.fcClient != nil { // is nil when connecting another server
+			p.fcClient.Disconnect()
+		}
+	}()
+	if p.server {
+		// connected to another server, no messages expected, just wait for disconnection
+		_, err := p.rw.ReadMsg()
+		return err
+	}
+	// Reject light clients if server is not synced.
+	//
+	// Put this checking here, so that "non-synced" les-server peers are still allowed
+	// to keep the connection.
 	if !h.synced() {
 		p.Log().Debug("Light server not synced, rejecting peer")
 		return p2p.DiscRequested
 	}
-
-	// Register the peer into the peerset and clientpool
-	if err := h.server.peers.register(p); err != nil {
-		return err
+	// Disconnect the inbound peer if it's rejected by clientPool
+	if cap, err := h.server.clientPool.connect(p); cap != p.fcParams.MinRecharge || err != nil {
+		p.Log().Debug("Light Ethereum peer rejected", "err", errFullClientPool)
+		return errFullClientPool
 	}
-	if p.balance = h.server.clientPool.Register(p); p.balance == nil {
-		h.server.peers.unregister(p.ID())
-		p.Log().Debug("Client pool already closed")
+	p.balance, _ = h.server.ns.GetField(p.Node(), h.server.clientPool.BalanceField).(*vfs.NodeBalance)
+	if p.balance == nil {
 		return p2p.DiscRequested
 	}
-	p.connectedAt = mclock.Now()
+	activeCount, _ := h.server.clientPool.pp.Active()
+	clientConnectionGauge.Update(int64(activeCount))
 
 	var wg sync.WaitGroup // Wait group used to track all in-flight task routines.
+
+	connectedAt := mclock.Now()
 	defer func() {
 		wg.Wait() // Ensure all background task routines have exited.
-		h.server.clientPool.Unregister(p)
-		h.server.peers.unregister(p.ID())
+		h.server.clientPool.disconnect(p)
 		p.balance = nil
-		connectionTimer.Update(time.Duration(mclock.Now() - p.connectedAt))
+		activeCount, _ := h.server.clientPool.pp.Active()
+		clientConnectionGauge.Update(int64(activeCount))
+		connectionTimer.Update(time.Duration(mclock.Now() - connectedAt))
 	}()
-
-	// Mark the peer as being served.
+	// Mark the peer starts to be served.
 	atomic.StoreUint32(&p.serving, 1)
 	defer atomic.StoreUint32(&p.serving, 0)
 
@@ -358,20 +381,20 @@ func (h *serverHandler) AddTxsSync() bool {
 }
 
 // getAccount retrieves an account from the state based on root.
-func getAccount(triedb *trie.Database, root, hash common.Hash) (types.StateAccount, error) {
+func getAccount(triedb *trie.Database, root, hash common.Hash) (state.Account, error) {
 	trie, err := trie.New(root, triedb)
 	if err != nil {
-		return types.StateAccount{}, err
+		return state.Account{}, err
 	}
 	blob, err := trie.TryGet(hash[:])
 	if err != nil {
-		return types.StateAccount{}, err
+		return state.Account{}, err
 	}
-	var acc types.StateAccount
-	if err = rlp.DecodeBytes(blob, &acc); err != nil {
-		return types.StateAccount{}, err
+	var account state.Account
+	if err = rlp.DecodeBytes(blob, &account); err != nil {
+		return state.Account{}, err
 	}
-	return acc, nil
+	return account, nil
 }
 
 // getHelperTrie returns the post-processed trie root for the given trie ID and section index
@@ -407,7 +430,7 @@ func (h *serverHandler) broadcastLoop() {
 	defer headSub.Unsubscribe()
 
 	var (
-		lastHead = h.blockchain.CurrentHeader()
+		lastHead *types.Header
 		lastTd   = common.Big0
 	)
 	for {
@@ -421,16 +444,82 @@ func (h *serverHandler) broadcastLoop() {
 			}
 			var reorg uint64
 			if lastHead != nil {
-				// If a setHead has been performed, the common ancestor can be nil.
-				if ancestor := rawdb.FindCommonAncestor(h.chainDb, header, lastHead); ancestor != nil {
-					reorg = lastHead.Number.Uint64() - ancestor.Number.Uint64()
-				}
+				reorg = lastHead.Number.Uint64() - rawdb.FindCommonAncestor(h.chainDb, header, lastHead).Number.Uint64()
 			}
 			lastHead, lastTd = header, td
 			log.Debug("Announcing block to peers", "number", number, "hash", hash, "td", td, "reorg", reorg)
-			h.server.peers.broadcast(announceData{Hash: hash, Number: number, Td: td, ReorgDepth: reorg})
+			h.server.broadcaster.broadcast(announceData{Hash: hash, Number: number, Td: td, ReorgDepth: reorg})
 		case <-h.closeCh:
 			return
+		}
+	}
+}
+
+// broadcaster sends new header announcements to active client peers
+type broadcaster struct {
+	ns                           *nodestate.NodeStateMachine
+	privateKey                   *ecdsa.PrivateKey
+	lastAnnounce, signedAnnounce announceData
+}
+
+// newBroadcaster creates a new broadcaster
+func newBroadcaster(ns *nodestate.NodeStateMachine) *broadcaster {
+	b := &broadcaster{ns: ns}
+	ns.SubscribeState(priorityPoolSetup.ActiveFlag, func(node *enode.Node, oldState, newState nodestate.Flags) {
+		if newState.Equals(priorityPoolSetup.ActiveFlag) {
+			// send last announcement to activated peers
+			b.sendTo(node)
+		}
+	})
+	return b
+}
+
+// setSignerKey sets the signer key for signed announcements. Should be called before
+// starting the protocol handler.
+func (b *broadcaster) setSignerKey(privateKey *ecdsa.PrivateKey) {
+	b.privateKey = privateKey
+}
+
+// broadcast sends the given announcements to all active peers
+func (b *broadcaster) broadcast(announce announceData) {
+	b.ns.Operation(func() {
+		// iterate in an Operation to ensure that the active set does not change while iterating
+		b.lastAnnounce = announce
+		b.ns.ForEach(priorityPoolSetup.ActiveFlag, nodestate.Flags{}, func(node *enode.Node, state nodestate.Flags) {
+			b.sendTo(node)
+		})
+	})
+}
+
+// sendTo sends the most recent announcement to the given node unless the same or higher Td
+// announcement has already been sent.
+func (b *broadcaster) sendTo(node *enode.Node) {
+	if b.lastAnnounce.Td == nil {
+		return
+	}
+	if p, _ := b.ns.GetField(node, clientPeerField).(*clientPeer); p != nil {
+		if p.headInfo.Td == nil || b.lastAnnounce.Td.Cmp(p.headInfo.Td) > 0 {
+			announce := b.lastAnnounce
+			switch p.announceType {
+			case announceTypeSimple:
+				if !p.queueSend(func() { p.sendAnnounce(announce) }) {
+					log.Debug("Drop announcement because queue is full", "number", announce.Number, "hash", announce.Hash)
+				} else {
+					log.Debug("Sent announcement", "number", announce.Number, "hash", announce.Hash)
+				}
+			case announceTypeSigned:
+				if b.signedAnnounce.Hash != b.lastAnnounce.Hash {
+					b.signedAnnounce = b.lastAnnounce
+					b.signedAnnounce.sign(b.privateKey)
+				}
+				announce := b.signedAnnounce
+				if !p.queueSend(func() { p.sendAnnounce(announce) }) {
+					log.Debug("Drop announcement because queue is full", "number", announce.Number, "hash", announce.Hash)
+				} else {
+					log.Debug("Sent announcement", "number", announce.Number, "hash", announce.Hash)
+				}
+			}
+			p.headInfo = blockInfo{b.lastAnnounce.Hash, b.lastAnnounce.Number, b.lastAnnounce.Td}
 		}
 	}
 }

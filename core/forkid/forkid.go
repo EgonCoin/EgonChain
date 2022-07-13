@@ -26,10 +26,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
@@ -155,7 +155,7 @@ func newFilter(config *params.ChainConfig, genesis common.Hash, headfn func() ui
 		for i, fork := range forks {
 			// If our head is beyond this fork, continue to the next (we have a dummy
 			// fork of maxuint64 as the last item to always fail this check eventually).
-			if head >= fork {
+			if head > fork {
 				continue
 			}
 			// Found the first unpassed fork block, check if our current state matches

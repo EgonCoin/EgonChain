@@ -20,8 +20,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
@@ -76,18 +76,15 @@ func TestDifficulty(t *testing.T) {
 	dt.config("EIP2384", params.ChainConfig{
 		MuirGlacierBlock: big.NewInt(0),
 	})
-	dt.config("EIP4345", params.ChainConfig{
-		ArrowGlacierBlock: big.NewInt(0),
-	})
 	dt.config("difficulty.json", mainnetChainConfig)
 
 	dt.walk(t, difficultyTestDir, func(t *testing.T, name string, test *DifficultyTest) {
-		cfg := dt.findConfig(t)
+		cfg := dt.findConfig(name)
 		if test.ParentDifficulty.Cmp(params.MinimumDifficulty) < 0 {
 			t.Skip("difficulty below minimum")
 			return
 		}
-		if err := dt.checkFailure(t, test.Run(cfg)); err != nil {
+		if err := dt.checkFailure(t, name, test.Run(cfg)); err != nil {
 			t.Error(err)
 		}
 	})

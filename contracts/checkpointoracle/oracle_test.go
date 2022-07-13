@@ -27,13 +27,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/accounts/abi/bind"
-	"github.com/EgonCoin/EgonChain/accounts/abi/bind/backends"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/contracts/checkpointoracle/contract"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/contracts/checkpointoracle/contract"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 var (
@@ -175,13 +175,7 @@ func TestCheckpointRegister(t *testing.T) {
 	sort.Sort(accounts)
 
 	// Deploy registrar contract
-	contractBackend := backends.NewSimulatedBackend(
-		core.GenesisAlloc{
-			accounts[0].addr: {Balance: big.NewInt(10000000000000000)},
-			accounts[1].addr: {Balance: big.NewInt(10000000000000000)},
-			accounts[2].addr: {Balance: big.NewInt(10000000000000000)},
-		}, 10000000,
-	)
+	contractBackend := backends.NewSimulatedBackend(core.GenesisAlloc{accounts[0].addr: {Balance: big.NewInt(1000000000)}, accounts[1].addr: {Balance: big.NewInt(1000000000)}, accounts[2].addr: {Balance: big.NewInt(1000000000)}}, 10000000)
 	defer contractBackend.Close()
 
 	transactOpts, _ := bind.NewKeyedTransactorWithChainID(accounts[0].key, big.NewInt(1337))

@@ -22,12 +22,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/accounts/abi/bind"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/light"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/light"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // Test light syncing which will download all headers from genesis.
@@ -116,7 +116,7 @@ func testCheckpointSyncing(t *testing.T, protocol int, syncMode int) {
 	}
 
 	// Create connected peer pair.
-	peer1, peer2, err := newTestPeerPair("peer", protocol, server.handler, client.handler, false)
+	peer1, peer2, err := newTestPeerPair("peer", protocol, server.handler, client.handler)
 	if err != nil {
 		t.Fatalf("Failed to connect testing peers %v", err)
 	}
@@ -196,7 +196,7 @@ func testMissOracleBackend(t *testing.T, hasCheckpoint bool, protocol int) {
 	// that user wants to unlock something which blocks the oracle backend
 	// initialisation. But at the same time syncing starts.
 	//
-	// See https://github.com/EgonCoin/EgonChain/issues/20097 for more detail.
+	// See https://github.com/ethereum/go-ethereum/issues/20097 for more detail.
 	//
 	// In this case, client should run light sync or legacy checkpoint sync
 	// if hardcoded checkpoint is configured.
@@ -218,7 +218,7 @@ func testMissOracleBackend(t *testing.T, hasCheckpoint bool, protocol int) {
 		}
 	}
 	// Create connected peer pair.
-	if _, _, err := newTestPeerPair("peer", 2, server.handler, client.handler, false); err != nil {
+	if _, _, err := newTestPeerPair("peer", 2, server.handler, client.handler); err != nil {
 		t.Fatalf("Failed to connect testing peers %v", err)
 	}
 	select {
@@ -291,7 +291,7 @@ func testSyncFromConfiguredCheckpoint(t *testing.T, protocol int) {
 		}
 	}
 	// Create connected peer pair.
-	if _, _, err := newTestPeerPair("peer", 2, server.handler, client.handler, false); err != nil {
+	if _, _, err := newTestPeerPair("peer", 2, server.handler, client.handler); err != nil {
 		t.Fatalf("Failed to connect testing peers %v", err)
 	}
 
@@ -364,7 +364,7 @@ func testSyncAll(t *testing.T, protocol int) {
 		}
 	}
 	// Create connected peer pair.
-	if _, _, err := newTestPeerPair("peer", 2, server.handler, client.handler, false); err != nil {
+	if _, _, err := newTestPeerPair("peer", 2, server.handler, client.handler); err != nil {
 		t.Fatalf("Failed to connect testing peers %v", err)
 	}
 

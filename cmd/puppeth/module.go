@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (

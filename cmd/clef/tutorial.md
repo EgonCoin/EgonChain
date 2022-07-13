@@ -44,9 +44,9 @@ You should treat 'masterseed.json' with utmost secrecy and make a backup of it!
 Clef is capable of managing both key-file based accounts as well as hardware wallets. To evaluate clef, we're going to point it to our Rinkeby testnet keystore and specify the Rinkeby chain ID for signing (Clef doesn't have a backing chain, so it doesn't know what network it runs on).
 
 ```text
-$ clef --keystore ~/.egoncoin/rinkeby/keystore --chainid 4
+$ clef --keystore ~/.ethereum/rinkeby/keystore --chainid 4
 
-INFO [07-01|11:00:46.385] Starting signer                          chainid=4 keystore=$HOME/.egoncoin/rinkeby/keystore light-kdf=false advanced=false
+INFO [07-01|11:00:46.385] Starting signer                          chainid=4 keystore=$HOME/.ethereum/rinkeby/keystore light-kdf=false advanced=false
 DEBUG[07-01|11:00:46.389] FS scan times                            list=3.521941ms set=9.017µs diff=4.112µs
 DEBUG[07-01|11:00:46.391] Ledger support enabled
 DEBUG[07-01|11:00:46.391] Trezor support enabled via HID
@@ -76,9 +76,9 @@ This will prompt the user within the Clef CLI to confirm or deny the request:
 A request has been made to list all accounts.
 You can select which accounts the caller can see
   [x] 0xD9C9Cd5f6779558b6e0eD4e6Acf6b1947E7fA1F3
-    URL: keystore://$HOME/.egoncoin/rinkeby/keystore/UTC--2017-04-14T15-15-00.327614556Z--d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3
+    URL: keystore://$HOME/.ethereum/rinkeby/keystore/UTC--2017-04-14T15-15-00.327614556Z--d9c9cd5f6779558b6e0ed4e6acf6b1947e7fa1f3
   [x] 0x086278A6C067775F71d6B2BB1856Db6E28c30418
-    URL: keystore://$HOME/.egoncoin/rinkeby/keystore/UTC--2018-02-06T22-53-11.211657239Z--086278a6c067775f71d6b2bb1856db6e28c30418
+    URL: keystore://$HOME/.ethereum/rinkeby/keystore/UTC--2018-02-06T22-53-11.211657239Z--086278a6c067775f71d6b2bb1856db6e28c30418
 -------------------------------------------
 Request context:
 	NA -> NA -> NA
@@ -100,9 +100,9 @@ or
 {"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Request denied"}}
 ```
 
-Apart from listing accounts, you can also *request* creating a new account; signing transactions and data; and recovering signatures. You can find the available methods in the Clef [External API Spec](https://github.com/EgonCoin/EgonChain/tree/master/cmd/clef#external-api-1) and the [External API Changelog](https://github.com/EgonCoin/EgonChain/blob/master/cmd/clef/extapi_changelog.md).
+Apart from listing accounts, you can also *request* creating a new account; signing transactions and data; and recovering signatures. You can find the available methods in the Clef [External API Spec](https://github.com/ethereum/go-ethereum/tree/master/cmd/clef#external-api-1) and the [External API Changelog](https://github.com/ethereum/go-ethereum/blob/master/cmd/clef/extapi_changelog.md).
 
-*Note, the number of things you can do from the External API is deliberately small, since we want to limit the power of remote calls by as much as possible! Clef has an [Internal API](https://github.com/EgonCoin/EgonChain/tree/master/cmd/clef#ui-api-1) too for the UI (User Interface) which is much richer and can support custom interfaces on top. But that's out of scope here.*
+*Note, the number of things you can do from the External API is deliberately small, since we want to limit the power of remote calls by as much as possible! Clef has an [Internal API](https://github.com/ethereum/go-ethereum/tree/master/cmd/clef#ui-api-1) too for the UI (User Interface) which is much richer and can support custom interfaces on top. But that's out of scope here.*
 
 ## Automatic rules
 
@@ -131,10 +131,10 @@ INFO [07-01|13:25:03.290] Ruleset attestation updated              sha256=645b58
 At this point, we can start Clef with the rule file:
 
 ```text
-$ clef --keystore ~/.egoncoin/rinkeby/keystore --chainid 4 --rules rules.js
+$ clef --keystore ~/.ethereum/rinkeby/keystore --chainid 4 --rules rules.js
 
 INFO [07-01|13:39:49.726] Rule engine configured                   file=rules.js
-INFO [07-01|13:39:49.726] Starting signer                          chainid=4 keystore=$HOME/.egoncoin/rinkeby/keystore light-kdf=false advanced=false
+INFO [07-01|13:39:49.726] Starting signer                          chainid=4 keystore=$HOME/.ethereum/rinkeby/keystore light-kdf=false advanced=false
 DEBUG[07-01|13:39:49.726] FS scan times                            list=35.15µs set=4.251µs diff=2.766µs
 DEBUG[07-01|13:39:49.727] Ledger support enabled
 DEBUG[07-01|13:39:49.727] Trezor support enabled via HID
@@ -244,10 +244,10 @@ INFO [07-01|14:11:28.509] Ruleset attestation updated              sha256=f163a1
 Restart Clef with the new rules in place:
 
 ```
-$ clef --keystore ~/.egoncoin/rinkeby/keystore --chainid 4 --rules rules.js
+$ clef --keystore ~/.ethereum/rinkeby/keystore --chainid 4 --rules rules.js
 
 INFO [07-01|14:12:41.636] Rule engine configured                   file=rules.js
-INFO [07-01|14:12:41.636] Starting signer                          chainid=4 keystore=$HOME/.egoncoin/rinkeby/keystore light-kdf=false advanced=false
+INFO [07-01|14:12:41.636] Starting signer                          chainid=4 keystore=$HOME/.ethereum/rinkeby/keystore light-kdf=false advanced=false
 DEBUG[07-01|14:12:41.636] FS scan times                            list=46.722µs set=4.47µs diff=2.157µs
 DEBUG[07-01|14:12:41.637] Ledger support enabled
 DEBUG[07-01|14:12:41.637] Trezor support enabled via HID
@@ -288,7 +288,7 @@ t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=request  meta
 t=2019-07-01T15:52:23+0300 lvl=info msg=SignData   api=signer type=response data=                                     error="Request denied"
 ```
 
-For more details on writing automatic rules, please see the [rules spec](https://github.com/EgonCoin/EgonChain/blob/master/cmd/clef/rules.md).
+For more details on writing automatic rules, please see the [rules spec](https://github.com/ethereum/go-ethereum/blob/master/cmd/clef/rules.md).
 
 ## Geth integration
 
@@ -299,7 +299,7 @@ Until then however, we're trying to pave the way via Geth. Geth v1.9.0 has built
 We can try this by running Clef with our previous rules on Rinkeby (for now it's a good idea to allow auto-listing accounts, since Geth likes to retrieve them once in a while).
 
 ```text
-$ clef --keystore ~/.egoncoin/rinkeby/keystore --chainid 4 --rules rules.js
+$ clef --keystore ~/.ethereum/rinkeby/keystore --chainid 4 --rules rules.js
 ```
 
 In a different window we can start Geth, list our accounts, even list our wallets to see where the accounts originate from:

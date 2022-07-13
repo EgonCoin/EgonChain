@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-//go:build !js
 // +build !js
 
 // Package leveldb implements the key-value database layer based on LevelDB.
@@ -27,10 +26,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/metrics"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -84,7 +83,7 @@ type Database struct {
 
 // New returns a wrapped LevelDB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
-func New(file string, cache int, handles int, namespace string, readonly bool) (*Database, error) {
+func New(file string, cache int, handles int, namespace string) (*Database, error) {
 	return NewCustom(file, namespace, func(options *opt.Options) {
 		// Ensure we have some minimal caching and file guarantees
 		if cache < minCache {
@@ -97,9 +96,6 @@ func New(file string, cache int, handles int, namespace string, readonly bool) (
 		options.OpenFilesCacheCapacity = handles
 		options.BlockCacheCapacity = cache / 2 * opt.MiB
 		options.WriteBuffer = cache / 4 * opt.MiB // Two of these are used internally
-		if readonly {
-			options.ReadOnly = true
-		}
 	})
 }
 
@@ -455,14 +451,14 @@ type batch struct {
 // Put inserts the given value into the batch for later committing.
 func (b *batch) Put(key, value []byte) error {
 	b.b.Put(key, value)
-	b.size += len(key) + len(value)
+	b.size += len(value)
 	return nil
 }
 
 // Delete inserts the a key removal into the batch for later committing.
 func (b *batch) Delete(key []byte) error {
 	b.b.Delete(key)
-	b.size += len(key)
+	b.size++
 	return nil
 }
 

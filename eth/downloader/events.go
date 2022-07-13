@@ -16,7 +16,7 @@
 
 package downloader
 
-import "github.com/EgonCoin/EgonChain/core/types"
+import "github.com/ethereum/go-ethereum/core/types"
 
 type DoneEvent struct {
 	Latest *types.Header

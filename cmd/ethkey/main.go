@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/EgonCoin/EgonChain/internal/flags"
+	"github.com/ethereum/go-ethereum/internal/flags"
 	"gopkg.in/urfave/cli.v1"
 )
 

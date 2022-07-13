@@ -20,7 +20,7 @@ import (
 	"container/heap"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
+	"github.com/ethereum/go-ethereum/common/mclock"
 )
 
 // LazyQueue is a priority queue data structure where priorities can change over
@@ -55,7 +55,7 @@ type (
 // NewLazyQueue creates a new lazy queue
 func NewLazyQueue(setIndex SetIndexCallback, priority PriorityCallback, maxPriority MaxPriorityCallback, clock mclock.Clock, refreshPeriod time.Duration) *LazyQueue {
 	q := &LazyQueue{
-		popQueue:     newSstack(nil, false),
+		popQueue:     newSstack(nil),
 		setIndex:     setIndex,
 		priority:     priority,
 		maxPriority:  maxPriority,
@@ -71,8 +71,8 @@ func NewLazyQueue(setIndex SetIndexCallback, priority PriorityCallback, maxPrior
 
 // Reset clears the contents of the queue
 func (q *LazyQueue) Reset() {
-	q.queue[0] = newSstack(q.setIndex0, false)
-	q.queue[1] = newSstack(q.setIndex1, false)
+	q.queue[0] = newSstack(q.setIndex0)
+	q.queue[1] = newSstack(q.setIndex1)
 }
 
 // Refresh performs queue re-evaluation if necessary

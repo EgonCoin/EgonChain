@@ -20,8 +20,8 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // senderFromServer is a types.Signer that remembers the sender address returned by the RPC
@@ -45,7 +45,7 @@ func (s *senderFromServer) Equal(other types.Signer) bool {
 }
 
 func (s *senderFromServer) Sender(tx *types.Transaction) (common.Address, error) {
-	if s.addr == (common.Address{}) {
+	if s.blockhash == (common.Hash{}) {
 		return common.Address{}, errNotCached
 	}
 	return s.addr, nil

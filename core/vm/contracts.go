@@ -22,13 +22,13 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/math"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/crypto/blake2b"
-	"github.com/EgonCoin/EgonChain/crypto/bls12381"
-	"github.com/EgonCoin/EgonChain/crypto/bn256"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/blake2b"
+	"github.com/ethereum/go-ethereum/crypto/bls12381"
+	"github.com/ethereum/go-ethereum/crypto/bn256"
+	"github.com/ethereum/go-ethereum/params"
 
 	//lint:ignore SA1019 Needed for precompile
 	"golang.org/x/crypto/ripemd160"
@@ -118,27 +118,13 @@ func init() {
 		PrecompiledAddressesHomestead = append(PrecompiledAddressesHomestead, k)
 	}
 	for k := range PrecompiledContractsByzantium {
-		PrecompiledAddressesByzantium = append(PrecompiledAddressesByzantium, k)
+		PrecompiledAddressesHomestead = append(PrecompiledAddressesByzantium, k)
 	}
 	for k := range PrecompiledContractsIstanbul {
 		PrecompiledAddressesIstanbul = append(PrecompiledAddressesIstanbul, k)
 	}
 	for k := range PrecompiledContractsBerlin {
 		PrecompiledAddressesBerlin = append(PrecompiledAddressesBerlin, k)
-	}
-}
-
-// ActivePrecompiles returns the precompiles enabled with the current configuration.
-func ActivePrecompiles(rules params.Rules) []common.Address {
-	switch {
-	case rules.IsBerlin:
-		return PrecompiledAddressesBerlin
-	case rules.IsIstanbul:
-		return PrecompiledAddressesIstanbul
-	case rules.IsByzantium:
-		return PrecompiledAddressesByzantium
-	default:
-		return PrecompiledAddressesHomestead
 	}
 }
 

@@ -28,10 +28,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/rpc"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -158,7 +158,7 @@ func TestNodeCloseClosesDB(t *testing.T) {
 	stack, _ := New(testNodeConfig())
 	defer stack.Close()
 
-	db, err := stack.OpenDatabase("mydb", 0, 0, "", false)
+	db, err := stack.OpenDatabase("mydb", 0, 0, "")
 	if err != nil {
 		t.Fatal("can't open DB:", err)
 	}
@@ -181,7 +181,7 @@ func TestNodeOpenDatabaseFromLifecycleStart(t *testing.T) {
 	var err error
 	stack.RegisterLifecycle(&InstrumentedService{
 		startHook: func() {
-			db, err = stack.OpenDatabase("mydb", 0, 0, "", false)
+			db, err = stack.OpenDatabase("mydb", 0, 0, "")
 			if err != nil {
 				t.Fatal("can't open DB:", err)
 			}
@@ -202,7 +202,7 @@ func TestNodeOpenDatabaseFromLifecycleStop(t *testing.T) {
 
 	stack.RegisterLifecycle(&InstrumentedService{
 		stopHook: func() {
-			db, err := stack.OpenDatabase("mydb", 0, 0, "", false)
+			db, err := stack.OpenDatabase("mydb", 0, 0, "")
 			if err != nil {
 				t.Fatal("can't open DB:", err)
 			}
@@ -393,7 +393,7 @@ func TestLifecycleTerminationGuarantee(t *testing.T) {
 // on the given prefix
 func TestRegisterHandler_Successful(t *testing.T) {
 	node := createNode(t, 7878, 7979)
-	defer node.Close()
+
 	// create and mount handler
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("success"))

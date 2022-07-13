@@ -19,7 +19,7 @@
 package downloader
 
 import (
-	"github.com/EgonCoin/EgonChain/metrics"
+	"github.com/ethereum/go-ethereum/metrics"
 )
 
 var (
@@ -37,6 +37,9 @@ var (
 	receiptReqTimer     = metrics.NewRegisteredTimer("eth/downloader/receipts/req", nil)
 	receiptDropMeter    = metrics.NewRegisteredMeter("eth/downloader/receipts/drop", nil)
 	receiptTimeoutMeter = metrics.NewRegisteredMeter("eth/downloader/receipts/timeout", nil)
+
+	stateInMeter   = metrics.NewRegisteredMeter("eth/downloader/states/in", nil)
+	stateDropMeter = metrics.NewRegisteredMeter("eth/downloader/states/drop", nil)
 
 	throttleCounter = metrics.NewRegisteredCounter("eth/downloader/throttle", nil)
 )

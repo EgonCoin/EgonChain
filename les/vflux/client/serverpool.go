@@ -24,15 +24,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common/mclock"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/les/utils"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/metrics"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/enr"
-	"github.com/EgonCoin/EgonChain/p2p/nodestate"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common/mclock"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/les/utils"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/enr"
+	"github.com/ethereum/go-ethereum/p2p/nodestate"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 const (
@@ -44,11 +44,10 @@ const (
 	queryWaitStep       = 1.02                   // exponential multiplier of redial wait time when no value was provided by the server
 	waitThreshold       = time.Hour * 2000       // drop node if waiting time is over the threshold
 	nodeWeightMul       = 1000000                // multiplier constant for node weight calculation
-	nodeWeightThreshold = 100                    // minimum weight for keeping a node in the known (valuable) set
+	nodeWeightThreshold = 100                    // minimum weight for keeping a node in the the known (valuable) set
 	minRedialWait       = 10                     // minimum redial wait time in seconds
 	preNegLimit         = 5                      // maximum number of simultaneous pre-negotiation queries
-	warnQueryFails      = 20                     // number of consecutive UDP query failures before we print a warning
-	maxQueryFails       = 100                    // number of consecutive UDP query failures when then chance of skipping a query reaches 50%
+	maxQueryFails       = 100                    // number of consecutive UDP query failures before we print a warning
 )
 
 // ServerPool provides a node iterator for dial candidates. The output is a mix of newly discovered
@@ -95,16 +94,16 @@ type nodeHistoryEnc struct {
 type QueryFunc func(*enode.Node) int
 
 var (
-	clientSetup       = &nodestate.Setup{Version: 2}
-	sfHasValue        = clientSetup.NewPersistentFlag("hasValue")
-	sfQuery           = clientSetup.NewFlag("query")
-	sfCanDial         = clientSetup.NewFlag("canDial")
-	sfDialing         = clientSetup.NewFlag("dialed")
-	sfWaitDialTimeout = clientSetup.NewFlag("dialTimeout")
-	sfConnected       = clientSetup.NewFlag("connected")
-	sfRedialWait      = clientSetup.NewFlag("redialWait")
-	sfAlwaysConnect   = clientSetup.NewFlag("alwaysConnect")
-	sfDialProcess     = nodestate.MergeFlags(sfQuery, sfCanDial, sfDialing, sfConnected, sfRedialWait)
+	clientSetup        = &nodestate.Setup{Version: 2}
+	sfHasValue         = clientSetup.NewPersistentFlag("hasValue")
+	sfQueried          = clientSetup.NewFlag("queried")
+	sfCanDial          = clientSetup.NewFlag("canDial")
+	sfDialing          = clientSetup.NewFlag("dialed")
+	sfWaitDialTimeout  = clientSetup.NewFlag("dialTimeout")
+	sfConnected        = clientSetup.NewFlag("connected")
+	sfRedialWait       = clientSetup.NewFlag("redialWait")
+	sfAlwaysConnect    = clientSetup.NewFlag("alwaysConnect")
+	sfDisableSelection = nodestate.MergeFlags(sfQueried, sfCanDial, sfDialing, sfConnected, sfRedialWait)
 
 	sfiNodeHistory = clientSetup.NewPersistentField("nodeHistory", reflect.TypeOf(nodeHistory{}),
 		func(field interface{}) ([]byte, error) {
@@ -163,8 +162,8 @@ func NewServerPool(db ethdb.KeyValueStore, dbKey []byte, mixTimeout time.Duratio
 	}
 	s.recalTimeout()
 	s.mixer = enode.NewFairMix(mixTimeout)
-	knownSelector := NewWrsIterator(s.ns, sfHasValue, sfDialProcess, sfiNodeWeight)
-	alwaysConnect := NewQueueIterator(s.ns, sfAlwaysConnect, sfDialProcess, true, nil)
+	knownSelector := NewWrsIterator(s.ns, sfHasValue, sfDisableSelection, sfiNodeWeight)
+	alwaysConnect := NewQueueIterator(s.ns, sfAlwaysConnect, sfDisableSelection, true, nil)
 	s.mixSources = append(s.mixSources, knownSelector)
 	s.mixSources = append(s.mixSources, alwaysConnect)
 
@@ -227,7 +226,7 @@ func (s *ServerPool) AddMetrics(
 	s.totalValueGauge = totalValueGauge
 	s.sessionValueMeter = sessionValueMeter
 	if serverSelectableGauge != nil {
-		s.ns.AddLogMetrics(sfHasValue, sfDialProcess, "selectable", nil, nil, serverSelectableGauge)
+		s.ns.AddLogMetrics(sfHasValue, sfDisableSelection, "selectable", nil, nil, serverSelectableGauge)
 	}
 	if serverDialedMeter != nil {
 		s.ns.AddLogMetrics(sfDialing, nodestate.Flags{}, "dialed", serverDialedMeter, nil, nil)
@@ -248,51 +247,43 @@ func (s *ServerPool) AddSource(source enode.Iterator) {
 // Nodes that are filtered out and does not appear on the output iterator are put back
 // into redialWait state.
 func (s *ServerPool) addPreNegFilter(input enode.Iterator, query QueryFunc) enode.Iterator {
-	s.fillSet = NewFillSet(s.ns, input, sfQuery)
-	s.ns.SubscribeState(sfDialProcess, func(n *enode.Node, oldState, newState nodestate.Flags) {
-		if !newState.Equals(sfQuery) {
-			if newState.HasAll(sfQuery) {
-				// remove query flag if the node is already somewhere in the dial process
-				s.ns.SetStateSub(n, nodestate.Flags{}, sfQuery, 0)
+	s.fillSet = NewFillSet(s.ns, input, sfQueried)
+	s.ns.SubscribeState(sfQueried, func(n *enode.Node, oldState, newState nodestate.Flags) {
+		if newState.Equals(sfQueried) {
+			fails := atomic.LoadUint32(&s.queryFails)
+			if fails == maxQueryFails {
+				log.Warn("UDP pre-negotiation query does not seem to work")
 			}
-			return
-		}
-		fails := atomic.LoadUint32(&s.queryFails)
-		failMax := fails
-		if failMax > maxQueryFails {
-			failMax = maxQueryFails
-		}
-		if rand.Intn(maxQueryFails*2) < int(failMax) {
-			// skip pre-negotiation with increasing chance, max 50%
-			// this ensures that the client can operate even if UDP is not working at all
-			s.ns.SetStateSub(n, sfCanDial, nodestate.Flags{}, time.Second*10)
-			// set canDial before resetting queried so that FillSet will not read more
-			// candidates unnecessarily
-			s.ns.SetStateSub(n, nodestate.Flags{}, sfQuery, 0)
-			return
-		}
-		go func() {
-			q := query(n)
-			if q == -1 {
-				atomic.AddUint32(&s.queryFails, 1)
-				fails++
-				if fails%warnQueryFails == 0 {
-					// warn if a large number of consecutive queries have failed
-					log.Warn("UDP connection queries failed", "count", fails)
-				}
-			} else {
-				atomic.StoreUint32(&s.queryFails, 0)
+			if fails > maxQueryFails {
+				fails = maxQueryFails
 			}
-			s.ns.Operation(func() {
-				// we are no longer running in the operation that the callback belongs to, start a new one because of setRedialWait
-				if q == 1 {
-					s.ns.SetStateSub(n, sfCanDial, nodestate.Flags{}, time.Second*10)
+			if rand.Intn(maxQueryFails*2) < int(fails) {
+				// skip pre-negotiation with increasing chance, max 50%
+				// this ensures that the client can operate even if UDP is not working at all
+				s.ns.SetStateSub(n, sfCanDial, nodestate.Flags{}, time.Second*10)
+				// set canDial before resetting queried so that FillSet will not read more
+				// candidates unnecessarily
+				s.ns.SetStateSub(n, nodestate.Flags{}, sfQueried, 0)
+				return
+			}
+			go func() {
+				q := query(n)
+				if q == -1 {
+					atomic.AddUint32(&s.queryFails, 1)
 				} else {
-					s.setRedialWait(n, queryCost, queryWaitStep)
+					atomic.StoreUint32(&s.queryFails, 0)
 				}
-				s.ns.SetStateSub(n, nodestate.Flags{}, sfQuery, 0)
-			})
-		}()
+				s.ns.Operation(func() {
+					// we are no longer running in the operation that the callback belongs to, start a new one because of setRedialWait
+					if q == 1 {
+						s.ns.SetStateSub(n, sfCanDial, nodestate.Flags{}, time.Second*10)
+					} else {
+						s.setRedialWait(n, queryCost, queryWaitStep)
+					}
+					s.ns.SetStateSub(n, nodestate.Flags{}, sfQueried, 0)
+				})
+			}()
+		}
 	})
 	return NewQueueIterator(s.ns, sfCanDial, nodestate.Flags{}, false, func(waiting bool) {
 		if waiting {

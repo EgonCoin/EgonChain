@@ -26,8 +26,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // faucetDockerfile is the Dockerfile required to build a faucet container to

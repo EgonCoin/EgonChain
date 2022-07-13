@@ -24,17 +24,17 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/eth/downloader"
-	"github.com/EgonCoin/EgonChain/eth/ethconfig"
-	"github.com/EgonCoin/EgonChain/ethclient"
-	"github.com/EgonCoin/EgonChain/ethstats"
-	"github.com/EgonCoin/EgonChain/internal/debug"
-	"github.com/EgonCoin/EgonChain/les"
-	"github.com/EgonCoin/EgonChain/node"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/nat"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/ethstats"
+	"github.com/ethereum/go-ethereum/internal/debug"
+	"github.com/ethereum/go-ethereum/les"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/nat"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // NodeConfig represents the collection of configuration values to fine tune the Geth
@@ -80,7 +80,7 @@ var defaultNodeConfig = &NodeConfig{
 	BootstrapNodes:        FoundationBootnodes(),
 	MaxPeers:              25,
 	EthereumEnabled:       true,
-	EthereumNetworkID:     659,
+	EthereumNetworkID:     1,
 	EthereumDatabaseCache: 16,
 }
 
@@ -158,39 +158,11 @@ func NewNode(datadir string, config *NodeConfig) (stack *Node, _ error) {
 		if err := json.Unmarshal([]byte(config.EthereumGenesis), genesis); err != nil {
 			return nil, fmt.Errorf("invalid genesis spec: %v", err)
 		}
-		// If we have the Ropsten testnet, hard code the chain configs too
-		if config.EthereumGenesis == RopstenGenesis() {
-			genesis.Config = params.RopstenChainConfig
-			if config.EthereumNetworkID == 1 {
-				config.EthereumNetworkID = 3
-			}
-		}
-		// If we have the Sepolia testnet, hard code the chain configs too
-		if config.EthereumGenesis == SepoliaGenesis() {
-			genesis.Config = params.SepoliaChainConfig
-			if config.EthereumNetworkID == 1 {
-				config.EthereumNetworkID = 11155111
-			}
-		}
-		// If we have the Rinkeby testnet, hard code the chain configs too
-		if config.EthereumGenesis == RinkebyGenesis() {
-			genesis.Config = params.RinkebyChainConfig
-			if config.EthereumNetworkID == 1 {
-				config.EthereumNetworkID = 4
-			}
-		}
-		// If we have the Goerli testnet, hard code the chain configs too
-		if config.EthereumGenesis == GoerliGenesis() {
-			genesis.Config = params.GoerliChainConfig
-			if config.EthereumNetworkID == 1 {
-				config.EthereumNetworkID = 5
-			}
-		}
-		// If we have the TestEgon testnet, hard code the chain configs too
-		if config.EthereumGenesis == TestEgonGenesis() {
-			genesis.Config = params.TestEgonChainConfig
-			if config.EthereumNetworkID == 1 {
-				config.EthereumNetworkID = 759
+		// If we have the Testnet testnet, hard code the chain configs too
+		if config.EthereumGenesis == TestnetGenesis() {
+			genesis.Config = params.TestnetChainConfig
+			if config.EthereumNetworkID == 790 {
+				config.EthereumNetworkID = 791
 			}
 		}
 	}

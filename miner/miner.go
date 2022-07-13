@@ -20,40 +20,36 @@ package miner
 import (
 	"fmt"
 	"math/big"
-	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/consensus"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/state"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/eth/downloader"
-	"github.com/EgonCoin/EgonChain/event"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
-// Backend wraps all methods required for mining. Only full node is capable
-// to offer all the functions here.
+// Backend wraps all methods required for mining.
 type Backend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
-	StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool, preferDisk bool) (statedb *state.StateDB, err error)
 }
 
 // Config is the configuration parameters of mining.
 type Config struct {
-	Etherbase  common.Address `toml:",omitempty"` // Public address for block mining rewards (default = first account)
-	Notify     []string       `toml:",omitempty"` // HTTP URL list to be notified of new work packages (only useful in ethash).
-	NotifyFull bool           `toml:",omitempty"` // Notify with pending block headers instead of work packages
-	ExtraData  hexutil.Bytes  `toml:",omitempty"` // Block extra data set by the miner
-	GasFloor   uint64         // Target gas floor for mined blocks.
-	GasCeil    uint64         // Target gas ceiling for mined blocks.
-	GasPrice   *big.Int       // Minimum gas price for mining a transaction
-	Recommit   time.Duration  // The time interval for miner to re-create mining work.
-	Noverify   bool           // Disable remote mining solution verification(only useful in ethash).
+	Etherbase common.Address `toml:",omitempty"` // Public address for block mining rewards (default = first account)
+	Notify    []string       `toml:",omitempty"` // HTTP URL list to be notified of new work packages(only useful in ethash).
+	ExtraData hexutil.Bytes  `toml:",omitempty"` // Block extra data set by the miner
+	GasFloor  uint64         // Target gas floor for mined blocks.
+	GasCeil   uint64         // Target gas ceiling for mined blocks.
+	GasPrice  *big.Int       // Minimum gas price for mining a transaction
+	Recommit  time.Duration  // The time interval for miner to re-create mining work.
+	Noverify  bool           // Disable remote mining solution verification(only useful in ethash).
 }
 
 // Miner creates blocks and searches for proof-of-work values.
@@ -66,11 +62,9 @@ type Miner struct {
 	exitCh   chan struct{}
 	startCh  chan common.Address
 	stopCh   chan struct{}
-
-	wg sync.WaitGroup
 }
 
-func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(header *types.Header) bool) *Miner {
+func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, isLocalBlock func(block *types.Block) bool) *Miner {
 	miner := &Miner{
 		eth:     eth,
 		mux:     mux,
@@ -80,8 +74,8 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 		stopCh:  make(chan struct{}),
 		worker:  newWorker(config, chainConfig, engine, eth, mux, isLocalBlock, true),
 	}
-	miner.wg.Add(1)
 	go miner.update()
+
 	return miner
 }
 
@@ -90,8 +84,6 @@ func New(eth Backend, config *Config, chainConfig *params.ChainConfig, mux *even
 // the loop is exited. This to prevent a major security vuln where external parties can DOS you with blocks
 // and halt your mining operation for as long as the DOS continues.
 func (miner *Miner) update() {
-	defer miner.wg.Done()
-
 	events := miner.mux.Subscribe(downloader.StartEvent{}, downloader.DoneEvent{}, downloader.FailedEvent{})
 	defer func() {
 		if !events.Closed() {
@@ -161,14 +153,13 @@ func (miner *Miner) Stop() {
 
 func (miner *Miner) Close() {
 	close(miner.exitCh)
-	miner.wg.Wait()
 }
 
 func (miner *Miner) Mining() bool {
 	return miner.worker.isRunning()
 }
 
-func (miner *Miner) Hashrate() uint64 {
+func (miner *Miner) HashRate() uint64 {
 	if pow, ok := miner.engine.(consensus.PoW); ok {
 		return uint64(pow.Hashrate())
 	}
@@ -202,20 +193,9 @@ func (miner *Miner) PendingBlock() *types.Block {
 	return miner.worker.pendingBlock()
 }
 
-// PendingBlockAndReceipts returns the currently pending block and corresponding receipts.
-func (miner *Miner) PendingBlockAndReceipts() (*types.Block, types.Receipts) {
-	return miner.worker.pendingBlockAndReceipts()
-}
-
 func (miner *Miner) SetEtherbase(addr common.Address) {
 	miner.coinbase = addr
 	miner.worker.setEtherbase(addr)
-}
-
-// SetGasCeil sets the gaslimit to strive for when mining blocks post 1559.
-// For pre-1559 blocks, it sets the ceiling.
-func (miner *Miner) SetGasCeil(ceil uint64) {
-	miner.worker.setGasCeil(ceil)
 }
 
 // EnablePreseal turns on the preseal mining feature. It's enabled by default.
@@ -233,12 +213,6 @@ func (miner *Miner) EnablePreseal() {
 // which uses this library.
 func (miner *Miner) DisablePreseal() {
 	miner.worker.disablePreseal()
-}
-
-// GetSealingBlock retrieves a sealing block based on the given parameters.
-// The returned block is not sealed but all other fields should be filled.
-func (miner *Miner) GetSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash) (*types.Block, error) {
-	return miner.worker.getSealingBlock(parent, timestamp, coinbase, random)
 }
 
 // SubscribePendingLogs starts delivering logs from pending transactions

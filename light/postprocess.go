@@ -26,16 +26,16 @@ import (
 	"time"
 
 	mapset "github.com/deckarep/golang-set"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/bitutil"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/params"
-	"github.com/EgonCoin/EgonChain/rlp"
-	"github.com/EgonCoin/EgonChain/trie"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/bitutil"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 // IndexerConfig includes a set of configs for chain indexers.
@@ -217,7 +217,7 @@ func (c *ChtIndexerBackend) Process(ctx context.Context, header *types.Header) e
 
 // Commit implements core.ChainIndexerBackend
 func (c *ChtIndexerBackend) Commit() error {
-	root, _, err := c.trie.Commit(nil)
+	root, err := c.trie.Commit(nil)
 	if err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func (b *BloomTrieIndexerBackend) Commit() error {
 			b.trie.Delete(encKey[:])
 		}
 	}
-	root, _, err := b.trie.Commit(nil)
+	root, err := b.trie.Commit(nil)
 	if err != nil {
 		return err
 	}

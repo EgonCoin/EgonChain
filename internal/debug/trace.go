@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-//go:build go1.5
-// +build go1.5
+//+build go1.5
 
 package debug
 
@@ -24,7 +23,7 @@ import (
 	"os"
 	"runtime/trace"
 
-	"github.com/EgonCoin/EgonChain/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // StartGoTrace turns on tracing, writing to the given file.

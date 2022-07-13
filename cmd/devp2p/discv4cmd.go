@@ -22,12 +22,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/cmd/devp2p/internal/v4test"
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/p2p/discover"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/params"
+	"github.com/ethereum/go-ethereum/cmd/devp2p/internal/v4test"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -276,7 +276,7 @@ func listen(ln *enode.LocalNode, addr string) *net.UDPConn {
 }
 
 func parseBootnodes(ctx *cli.Context) ([]*enode.Node, error) {
-	s := params.RinkebyBootnodes
+	s := params.TestnetBootnodes
 	if ctx.IsSet(bootnodesFlag.Name) {
 		input := ctx.String(bootnodesFlag.Name)
 		if input == "" {

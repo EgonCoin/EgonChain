@@ -18,12 +18,11 @@ package les
 
 import (
 	"context"
-	"math/rand"
 	"sync"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 type lesTxRelay struct {
@@ -118,7 +117,7 @@ func (ltrx *lesTxRelay) send(txs types.Transactions, count int) {
 		ll := list
 		enc, _ := rlp.EncodeToBytes(ll)
 
-		reqID := rand.Uint64()
+		reqID := genReqID()
 		rq := &distReq{
 			getCost: func(dp distPeer) uint64 {
 				peer := dp.(*serverPeer)

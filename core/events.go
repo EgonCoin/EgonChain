@@ -17,8 +17,8 @@
 package core
 
 import (
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // NewTxsEvent is posted when a batch of transactions enter the transaction pool.

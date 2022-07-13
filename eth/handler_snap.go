@@ -17,9 +17,9 @@
 package eth
 
 import (
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/eth/protocols/snap"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/eth/protocols/snap"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 )
 
 // snapHandler implements the snap.Backend interface to handle the various network

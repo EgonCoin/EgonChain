@@ -24,13 +24,13 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/metrics"
-	"github.com/EgonCoin/EgonChain/rlp"
-	"github.com/EgonCoin/EgonChain/trie"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 var (
@@ -137,6 +137,10 @@ type snapshot interface {
 	// flattening everything down (bad for reorgs).
 	Journal(buffer *bytes.Buffer) (common.Hash, error)
 
+	// LegacyJournal is basically identical to Journal. it's the legacy version for
+	// flushing legacy journal. Now the only purpose of this function is for testing.
+	LegacyJournal(buffer *bytes.Buffer) (common.Hash, error)
+
 	// Stale return whether this layer has become stale (was flattened across) or
 	// if it's still live.
 	Stale() bool
@@ -148,11 +152,11 @@ type snapshot interface {
 	StorageIterator(account common.Hash, seek common.Hash) (StorageIterator, bool)
 }
 
-// Tree is an Ethereum state snapshot tree. It consists of one persistent base
-// layer backed by a key-value store, on top of which arbitrarily many in-memory
-// diff layers are topped. The memory diffs can form a tree with branching, but
-// the disk layer is singleton and common to all. If a reorg goes deeper than the
-// disk layer, everything needs to be deleted.
+// SnapshotTree is an Ethereum state snapshot tree. It consists of one persistent
+// base layer backed by a key-value store, on top of which arbitrarily many in-
+// memory diff layers are topped. The memory diffs can form a tree with branching,
+// but the disk layer is singleton and common to all. If a reorg goes deeper than
+// the disk layer, everything needs to be deleted.
 //
 // The goal of a state snapshot is twofold: to allow direct access to account and
 // storage data to avoid expensive multi-level trie lookups; and to allow sorted,
@@ -163,26 +167,17 @@ type Tree struct {
 	cache  int                      // Megabytes permitted to use for read caches
 	layers map[common.Hash]snapshot // Collection of all known layers
 	lock   sync.RWMutex
-
-	// Test hooks
-	onFlatten func() // Hook invoked when the bottom most diff layers are flattened
 }
 
 // New attempts to load an already existing snapshot from a persistent key-value
 // store (with a number of memory layers from a journal), ensuring that the head
 // of the snapshot matches the expected one.
 //
-// If the snapshot is missing or the disk layer is broken, the snapshot will be
-// reconstructed using both the existing data and the state trie.
-// The repair happens on a background thread.
-//
-// If the memory layers in the journal do not match the disk layer (e.g. there is
-// a gap) or the journal is missing, there are two repair cases:
-//
-// - if the 'recovery' parameter is true, all memory diff-layers will be discarded.
-//   This case happens when the snapshot is 'ahead' of the state trie.
-// - otherwise, the entire snapshot is considered invalid and will be recreated on
-//   a background thread.
+// If the snapshot is missing or the disk layer is broken, the entire is deleted
+// and will be reconstructed from scratch based on the tries in the key-value
+// store, on a background thread. If the memory layers from the journal is not
+// continuous with disk layer or the journal is missing, all diffs will be discarded
+// iff it's in "recovery" mode, otherwise rebuild is mandatory.
 func New(diskdb ethdb.KeyValueStore, triedb *trie.Database, cache int, root common.Hash, async bool, rebuild bool, recovery bool) (*Tree, error) {
 	// Create a new, empty snapshot tree
 	snap := &Tree{
@@ -195,11 +190,7 @@ func New(diskdb ethdb.KeyValueStore, triedb *trie.Database, cache int, root comm
 		defer snap.waitBuild()
 	}
 	// Attempt to load a previously persisted snapshot and rebuild one if failed
-	head, disabled, err := loadSnapshot(diskdb, triedb, cache, root, recovery)
-	if disabled {
-		log.Warn("Snapshot maintenance disabled (syncing)")
-		return snap, nil
-	}
+	head, err := loadSnapshot(diskdb, triedb, cache, root, recovery)
 	if err != nil {
 		if rebuild {
 			log.Warn("Failed to load snapshot, regenerating", "err", err)
@@ -234,55 +225,6 @@ func (t *Tree) waitBuild() {
 	// Wait until the snapshot is generated
 	if done != nil {
 		<-done
-	}
-}
-
-// Disable interrupts any pending snapshot generator, deletes all the snapshot
-// layers in memory and marks snapshots disabled globally. In order to resume
-// the snapshot functionality, the caller must invoke Rebuild.
-func (t *Tree) Disable() {
-	// Interrupt any live snapshot layers
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
-	for _, layer := range t.layers {
-		switch layer := layer.(type) {
-		case *diskLayer:
-			// If the base layer is generating, abort it
-			if layer.genAbort != nil {
-				abort := make(chan *generatorStats)
-				layer.genAbort <- abort
-				<-abort
-			}
-			// Layer should be inactive now, mark it as stale
-			layer.lock.Lock()
-			layer.stale = true
-			layer.lock.Unlock()
-
-		case *diffLayer:
-			// If the layer is a simple diff, simply mark as stale
-			layer.lock.Lock()
-			atomic.StoreUint32(&layer.stale, 1)
-			layer.lock.Unlock()
-
-		default:
-			panic(fmt.Sprintf("unknown layer type: %T", layer))
-		}
-	}
-	t.layers = map[common.Hash]snapshot{}
-
-	// Delete all snapshot liveness information from the database
-	batch := t.diskdb.NewBatch()
-
-	rawdb.WriteSnapshotDisabled(batch)
-	rawdb.DeleteSnapshotRoot(batch)
-	rawdb.DeleteSnapshotJournal(batch)
-	rawdb.DeleteSnapshotGenerator(batch)
-	rawdb.DeleteSnapshotRecoveryNumber(batch)
-	// Note, we don't delete the sync progress
-
-	if err := batch.Write(); err != nil {
-		log.Crit("Failed to disable snapshots", "err", err)
 	}
 }
 
@@ -341,11 +283,11 @@ func (t *Tree) Update(blockRoot common.Hash, parentRoot common.Hash, destructs m
 		return errSnapshotCycle
 	}
 	// Generate a new snapshot on top of the parent
-	parent := t.Snapshot(parentRoot)
+	parent := t.Snapshot(parentRoot).(snapshot)
 	if parent == nil {
 		return fmt.Errorf("parent [%#x] snapshot missing", parentRoot)
 	}
-	snap := parent.(snapshot).Update(blockRoot, destructs, accounts, storage)
+	snap := parent.Update(blockRoot, destructs, accounts, storage)
 
 	// Save the new snapshot for later
 	t.lock.Lock()
@@ -466,26 +408,19 @@ func (t *Tree) cap(diff *diffLayer, layers int) *diskLayer {
 		return nil
 
 	case *diffLayer:
-		// Hold the write lock until the flattened parent is linked correctly.
-		// Otherwise, the stale layer may be accessed by external reads in the
-		// meantime.
-		diff.lock.Lock()
-		defer diff.lock.Unlock()
-
 		// Flatten the parent into the grandparent. The flattening internally obtains a
 		// write lock on grandparent.
 		flattened := parent.flatten().(*diffLayer)
 		t.layers[flattened.root] = flattened
 
-		// Invoke the hook if it's registered. Ugly hack.
-		if t.onFlatten != nil {
-			t.onFlatten()
-		}
+		diff.lock.Lock()
+		defer diff.lock.Unlock()
+
 		diff.parent = flattened
 		if flattened.memory < aggregatorMemoryLimit {
 			// Accumulator layer is smaller than the limit, so we can abort, unless
 			// there's a snapshot being generated currently. In that case, the trie
-			// will move from underneath the generator so we **must** merge all the
+			// will move fron underneath the generator so we **must** merge all the
 			// partial data down into the snapshot and restart the generation.
 			if flattened.parent.(*diskLayer).genAbort == nil {
 				return nil
@@ -549,17 +484,8 @@ func diffToDisk(bottom *diffLayer) *diskLayer {
 			if key := it.Key(); len(key) == 65 { // TODO(karalabe): Yuck, we should move this into the iterator
 				batch.Delete(key)
 				base.cache.Del(key[1:])
-				snapshotFlushStorageItemMeter.Mark(1)
 
-				// Ensure we don't delete too much data blindly (contract can be
-				// huge). It's ok to flush, the root will go missing in case of a
-				// crash and we'll detect and regenerate the snapshot.
-				if batch.ValueSize() > ethdb.IdealBatchSize {
-					if err := batch.Write(); err != nil {
-						log.Crit("Failed to write storage deletions", "err", err)
-					}
-					batch.Reset()
-				}
+				snapshotFlushStorageItemMeter.Mark(1)
 			}
 		}
 		it.Release()
@@ -577,16 +503,6 @@ func diffToDisk(bottom *diffLayer) *diskLayer {
 
 		snapshotFlushAccountItemMeter.Mark(1)
 		snapshotFlushAccountSizeMeter.Mark(int64(len(data)))
-
-		// Ensure we don't write too much data blindly. It's ok to flush, the
-		// root will go missing in case of a crash and we'll detect and regen
-		// the snapshot.
-		if batch.ValueSize() > ethdb.IdealBatchSize {
-			if err := batch.Write(); err != nil {
-				log.Crit("Failed to write storage deletions", "err", err)
-			}
-			batch.Reset()
-		}
 	}
 	// Push all the storage slots into the database
 	for accountHash, storage := range bottom.storageData {
@@ -687,6 +603,29 @@ func (t *Tree) Journal(root common.Hash) (common.Hash, error) {
 	return base, nil
 }
 
+// LegacyJournal is basically identical to Journal. it's the legacy
+// version for flushing legacy journal. Now the only purpose of this
+// function is for testing.
+func (t *Tree) LegacyJournal(root common.Hash) (common.Hash, error) {
+	// Retrieve the head snapshot to journal from var snap snapshot
+	snap := t.Snapshot(root)
+	if snap == nil {
+		return common.Hash{}, fmt.Errorf("snapshot [%#x] missing", root)
+	}
+	// Run the journaling
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
+	journal := new(bytes.Buffer)
+	base, err := snap.(snapshot).LegacyJournal(journal)
+	if err != nil {
+		return common.Hash{}, err
+	}
+	// Store the journal into the database and return
+	rawdb.WriteSnapshotJournal(t.diskdb, journal.Bytes())
+	return base, nil
+}
+
 // Rebuild wipes all available snapshot data from the persistent database and
 // discard all caches and diff layers. Afterwards, it starts a new snapshot
 // generator with the given root hash.
@@ -695,9 +634,11 @@ func (t *Tree) Rebuild(root common.Hash) {
 	defer t.lock.Unlock()
 
 	// Firstly delete any recovery flag in the database. Because now we are
-	// building a brand new snapshot. Also reenable the snapshot feature.
+	// building a brand new snapshot.
 	rawdb.DeleteSnapshotRecoveryNumber(t.diskdb)
-	rawdb.DeleteSnapshotDisabled(t.diskdb)
+
+	// Track whether there's a wipe currently running and keep it alive if so
+	var wiper chan struct{}
 
 	// Iterate over and mark all layers stale
 	for _, layer := range t.layers {
@@ -707,7 +648,10 @@ func (t *Tree) Rebuild(root common.Hash) {
 			if layer.genAbort != nil {
 				abort := make(chan *generatorStats)
 				layer.genAbort <- abort
-				<-abort
+
+				if stats := <-abort; stats != nil {
+					wiper = stats.wiping
+				}
 			}
 			// Layer should be inactive now, mark it as stale
 			layer.lock.Lock()
@@ -728,7 +672,7 @@ func (t *Tree) Rebuild(root common.Hash) {
 	// generator will run a wiper first if there's not one running right now.
 	log.Info("Rebuilding state snapshot")
 	t.layers = map[common.Hash]snapshot{
-		root: generateSnapshot(t.diskdb, t.triedb, t.cache, root),
+		root: generateSnapshot(t.diskdb, t.triedb, t.cache, root, wiper),
 	}
 }
 

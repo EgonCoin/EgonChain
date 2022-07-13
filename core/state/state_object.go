@@ -23,11 +23,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/metrics"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
@@ -66,7 +65,7 @@ func (s Storage) Copy() Storage {
 type stateObject struct {
 	address  common.Address
 	addrHash common.Hash // hash of ethereum address of the account
-	data     types.StateAccount
+	data     Account
 	db       *StateDB
 
 	// DB error.
@@ -98,8 +97,17 @@ func (s *stateObject) empty() bool {
 	return s.data.Nonce == 0 && s.data.Balance.Sign() == 0 && bytes.Equal(s.data.CodeHash, emptyCodeHash)
 }
 
+// Account is the Ethereum consensus representation of accounts.
+// These objects are stored in the main account trie.
+type Account struct {
+	Nonce    uint64
+	Balance  *big.Int
+	Root     common.Hash // merkle root of the storage trie
+	CodeHash []byte
+}
+
 // newObject creates a state object.
-func newObject(db *StateDB, address common.Address, data types.StateAccount) *stateObject {
+func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	if data.Balance == nil {
 		data.Balance = new(big.Int)
 	}
@@ -122,7 +130,7 @@ func newObject(db *StateDB, address common.Address, data types.StateAccount) *st
 
 // EncodeRLP implements rlp.Encoder.
 func (s *stateObject) EncodeRLP(w io.Writer) error {
-	return rlp.Encode(w, &s.data)
+	return rlp.Encode(w, s.data)
 }
 
 // setError remembers the first non-nil error it is called with.
@@ -228,7 +236,7 @@ func (s *stateObject) GetCommittedState(db Database, key common.Hash) common.Has
 		}
 		enc, err = s.db.snap.Storage(s.addrHash, crypto.Keccak256Hash(key.Bytes()))
 	}
-	// If the snapshot is unavailable or reading from it fails, load from the database.
+	// If snapshot unavailable or reading from it failed, load from the database
 	if s.db.snap == nil || err != nil {
 		if meter != nil {
 			// If we already spent time checking the snapshot, account for it
@@ -321,7 +329,7 @@ func (s *stateObject) finalise(prefetch bool) {
 // It will return nil if the trie has not been loaded and no changes have been made
 func (s *stateObject) updateTrie(db Database) Trie {
 	// Make sure all dirty slots are finalized into the pending storage area
-	s.finalise(false) // Don't prefetch anymore, pull directly if need be
+	s.finalise(false) // Don't prefetch any more, pull directly if need be
 	if len(s.pendingStorage) == 0 {
 		return s.trie
 	}
@@ -346,12 +354,10 @@ func (s *stateObject) updateTrie(db Database) Trie {
 		var v []byte
 		if (value == common.Hash{}) {
 			s.setError(tr.TryDelete(key[:]))
-			s.db.StorageDeleted += 1
 		} else {
 			// Encoding []byte cannot fail, ok to ignore the error.
 			v, _ = rlp.EncodeToBytes(common.TrimLeftZeroes(value[:]))
 			s.setError(tr.TryUpdate(key[:], v))
-			s.db.StorageUpdated += 1
 		}
 		// If state snapshotting is active, cache the data til commit
 		if s.db.snap != nil {
@@ -362,7 +368,7 @@ func (s *stateObject) updateTrie(db Database) Trie {
 					s.db.snapStorage[s.addrHash] = storage
 				}
 			}
-			storage[crypto.HashData(hasher, key[:])] = v // v will be nil if it's deleted
+			storage[crypto.HashData(hasher, key[:])] = v // v will be nil if value is 0x00
 		}
 		usedStorage = append(usedStorage, common.CopyBytes(key[:])) // Copy needed for closure
 	}
@@ -390,23 +396,23 @@ func (s *stateObject) updateRoot(db Database) {
 
 // CommitTrie the storage trie of the object to db.
 // This updates the trie root.
-func (s *stateObject) CommitTrie(db Database) (int, error) {
+func (s *stateObject) CommitTrie(db Database) error {
 	// If nothing changed, don't bother with hashing anything
 	if s.updateTrie(db) == nil {
-		return 0, nil
+		return nil
 	}
 	if s.dbErr != nil {
-		return 0, s.dbErr
+		return s.dbErr
 	}
 	// Track the amount of time wasted on committing the storage trie
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.db.StorageCommits += time.Since(start) }(time.Now())
 	}
-	root, committed, err := s.trie.Commit(nil)
+	root, err := s.trie.Commit(nil)
 	if err == nil {
 		s.data.Root = root
 	}
-	return committed, err
+	return err
 }
 
 // AddBalance adds amount to s's balance.
@@ -443,6 +449,9 @@ func (s *stateObject) SetBalance(amount *big.Int) {
 func (s *stateObject) setBalance(amount *big.Int) {
 	s.data.Balance = amount
 }
+
+// Return the gas back to the origin. Used by the Virtual machine or Closures
+func (s *stateObject) ReturnGas(gas *big.Int) {}
 
 func (s *stateObject) deepCopy(db *StateDB) *stateObject {
 	stateObject := newObject(db, s.address, s.data)

@@ -22,15 +22,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"sync"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/event"
-	"github.com/EgonCoin/EgonChain/log"
-	"github.com/EgonCoin/EgonChain/p2p"
-	"github.com/EgonCoin/EgonChain/p2p/enode"
-	"github.com/EgonCoin/EgonChain/p2p/simulations/adapters"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/p2p/simulations/adapters"
 )
 
 var DialBanTimeout = 200 * time.Millisecond
@@ -693,6 +694,12 @@ func (net *Network) Shutdown() {
 		log.Debug("Stopping node", "id", node.ID())
 		if err := node.Stop(); err != nil {
 			log.Warn("Can't stop node", "id", node.ID(), "err", err)
+		}
+		// If the node has the close method, call it.
+		if closer, ok := node.Node.(io.Closer); ok {
+			if err := closer.Close(); err != nil {
+				log.Warn("Can't close node", "id", node.ID(), "err", err)
+			}
 		}
 	}
 	close(net.quitc)

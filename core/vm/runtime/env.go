@@ -17,8 +17,8 @@
 package runtime
 
 import (
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/vm"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/vm"
 )
 
 func NewEnv(cfg *Config) *vm.EVM {
@@ -35,7 +35,6 @@ func NewEnv(cfg *Config) *vm.EVM {
 		Time:        cfg.Time,
 		Difficulty:  cfg.Difficulty,
 		GasLimit:    cfg.GasLimit,
-		BaseFee:     cfg.BaseFee,
 	}
 
 	return vm.NewEVM(blockContext, txContext, cfg.State, cfg.ChainConfig, cfg.EVMConfig)

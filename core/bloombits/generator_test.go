@@ -21,7 +21,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/EgonCoin/EgonChain/core/types"
+	"github.com/ethereum/go-ethereum/core/types"
 )
 
 // Tests that batched bloom bits are correctly rotated from the input bloom
@@ -70,7 +70,7 @@ func BenchmarkGenerator(b *testing.B) {
 			if err != nil {
 				b.Fatalf("failed to create bloombit generator: %v", err)
 			}
-			for j, bloom := range &input {
+			for j, bloom := range input {
 				if err := gen.AddBloom(uint(j), bloom); err != nil {
 					b.Fatalf("bloom %d: failed to add: %v", i, err)
 				}
@@ -89,7 +89,7 @@ func BenchmarkGenerator(b *testing.B) {
 			if err != nil {
 				b.Fatalf("failed to create bloombit generator: %v", err)
 			}
-			for j, bloom := range &input {
+			for j, bloom := range input {
 				if err := gen.AddBloom(uint(j), bloom); err != nil {
 					b.Fatalf("bloom %d: failed to add: %v", i, err)
 				}

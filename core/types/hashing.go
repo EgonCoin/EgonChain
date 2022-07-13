@@ -20,9 +20,9 @@ import (
 	"bytes"
 	"sync"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/crypto"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -36,7 +36,6 @@ var encodeBufferPool = sync.Pool{
 	New: func() interface{} { return new(bytes.Buffer) },
 }
 
-// rlpHash encodes x and hashes the encoded bytes.
 func rlpHash(x interface{}) (h common.Hash) {
 	sha := hasherPool.Get().(crypto.KeccakState)
 	defer hasherPool.Put(sha)
@@ -46,8 +45,8 @@ func rlpHash(x interface{}) (h common.Hash) {
 	return h
 }
 
-// prefixedRlpHash writes the prefix into the hasher before rlp-encoding x.
-// It's used for typed transactions.
+// prefixedRlpHash writes the prefix into the hasher before rlp-encoding the
+// given interface. It's used for typed transactions.
 func prefixedRlpHash(prefix byte, x interface{}) (h common.Hash) {
 	sha := hasherPool.Get().(crypto.KeccakState)
 	defer hasherPool.Put(sha)

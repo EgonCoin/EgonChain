@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/light"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/light"
 )
 
 func TestLightPruner(t *testing.T) {

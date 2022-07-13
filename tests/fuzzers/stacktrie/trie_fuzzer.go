@@ -25,9 +25,9 @@ import (
 	"io"
 	"sort"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/ethdb"
-	"github.com/EgonCoin/EgonChain/trie"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/trie"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -173,7 +173,7 @@ func (f *fuzzer) fuzz() int {
 		return 0
 	}
 	// Flush trie -> database
-	rootA, _, err := trieA.Commit(nil)
+	rootA, err := trieA.Commit(nil)
 	if err != nil {
 		panic(err)
 	}

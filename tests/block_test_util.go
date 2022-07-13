@@ -23,20 +23,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"os"
 
-	"github.com/EgonCoin/EgonChain/common"
-	"github.com/EgonCoin/EgonChain/common/hexutil"
-	"github.com/EgonCoin/EgonChain/common/math"
-	"github.com/EgonCoin/EgonChain/consensus"
-	"github.com/EgonCoin/EgonChain/consensus/ethash"
-	"github.com/EgonCoin/EgonChain/core"
-	"github.com/EgonCoin/EgonChain/core/rawdb"
-	"github.com/EgonCoin/EgonChain/core/state"
-	"github.com/EgonCoin/EgonChain/core/types"
-	"github.com/EgonCoin/EgonChain/core/vm"
-	"github.com/EgonCoin/EgonChain/params"
-	"github.com/EgonCoin/EgonChain/rlp"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // A BlockTest checks handling of entire blocks.
@@ -60,10 +59,9 @@ type btJSON struct {
 }
 
 type btBlock struct {
-	BlockHeader     *btHeader
-	ExpectException string
-	Rlp             string
-	UncleHeaders    []*btHeader
+	BlockHeader  *btHeader
+	Rlp          string
+	UncleHeaders []*btHeader
 }
 
 //go:generate gencodec -type btHeader -field-override btHeaderMarshaling -out gen_btheader.go
@@ -85,17 +83,15 @@ type btHeader struct {
 	GasLimit         uint64
 	GasUsed          uint64
 	Timestamp        uint64
-	BaseFeePerGas    *big.Int
 }
 
 type btHeaderMarshaling struct {
-	ExtraData     hexutil.Bytes
-	Number        *math.HexOrDecimal256
-	Difficulty    *math.HexOrDecimal256
-	GasLimit      math.HexOrDecimal64
-	GasUsed       math.HexOrDecimal64
-	Timestamp     math.HexOrDecimal64
-	BaseFeePerGas *math.HexOrDecimal256
+	ExtraData  hexutil.Bytes
+	Number     *math.HexOrDecimal256
+	Difficulty *math.HexOrDecimal256
+	GasLimit   math.HexOrDecimal64
+	GasUsed    math.HexOrDecimal64
+	Timestamp  math.HexOrDecimal64
 }
 
 func (t *BlockTest) Run(snapshotter bool) error {
@@ -170,7 +166,6 @@ func (t *BlockTest) genesis(config *params.ChainConfig) *core.Genesis {
 		Mixhash:    t.json.Genesis.MixHash,
 		Coinbase:   t.json.Genesis.Coinbase,
 		Alloc:      t.json.Pre,
-		BaseFee:    t.json.Genesis.BaseFeePerGas,
 	}
 }
 
@@ -189,7 +184,7 @@ func (t *BlockTest) genesis(config *params.ChainConfig) *core.Genesis {
 func (t *BlockTest) insertBlocks(blockchain *core.BlockChain) ([]btBlock, error) {
 	validBlocks := make([]btBlock, 0)
 	// insert the test blocks, which will execute all transactions
-	for bi, b := range t.json.Blocks {
+	for _, b := range t.json.Blocks {
 		cb, err := b.decode()
 		if err != nil {
 			if b.BlockHeader == nil {
@@ -209,12 +204,7 @@ func (t *BlockTest) insertBlocks(blockchain *core.BlockChain) ([]btBlock, error)
 			}
 		}
 		if b.BlockHeader == nil {
-			if data, err := json.MarshalIndent(cb.Header(), "", "  "); err == nil {
-				fmt.Fprintf(os.Stderr, "block (index %d) insertion should have failed due to: %v:\n%v\n",
-					bi, b.ExpectException, string(data))
-			}
-			return nil, fmt.Errorf("block (index %d) insertion should have failed due to: %v",
-				bi, b.ExpectException)
+			return nil, fmt.Errorf("block insertion should have failed")
 		}
 
 		// validate RLP decoding by checking all values against test file JSON
