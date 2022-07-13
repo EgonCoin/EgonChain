@@ -21,14 +21,14 @@ import "github.com/ethereum/go-ethereum/common"
 // MainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
 // the main EGON network.
 var MainnetBootnodes = []string{
-	"enode://bba58887951c76e93ec548707c01b5bc81159d914195132d52d962fac98f942b53cbc8bf50b63070641c7bb918598adf90405ddeab7e432c98df02bbfb81a7a0@18.195.185.117:30303",  // egon-mainnet-node-boot-01
-	"enode://5ab4fa0a4a9966e1ae152c93defa1064cbad3b266b1af5a4688f5350adbc935a7c3ea85251a7a13986a305a9cec50e95c8a5ade453724e6b52cb0e60ba4364c8@35.170.32.132:30303",  //egon-mainnet-node-boot-02
+	"enode://7503b589d2052e396ab3e5cf53c4f65475ae5ab36f17fa1385800fe8ea8fae8338fe953c893ab16165dda616f9f1a98a72cb7c3db5e0b7cc5aaced9eaee9fdf9@18.195.185.117:30303",  // egon-mainnet-node-boot-01
+	"enode://b9954bc65bb04337e18e6dd788c6e20cdd7fb2336feeb397e5607d5b989ef4271f091c387d4913fbf3a65ac09a2ca491c69bda9d0bb0f67a4797fd44b8bc4458@35.170.32.132:30303",  //egon-mainnet-node-boot-02
 }
 
 // TestnetBootnodes are the enode URLs of the P2P bootstrap nodes running on the test network.
 var TestnetBootnodes = []string{
-	"enode://c6b65588a55f73ecc5d02d65b852961fd18347a2be19efc2c6a44088e44059a0b5578ac4beac2997c69dd02b44c0e6d3ebfe069399aba66c43257d19c5dd3ef7@3.123.66.255:30303", // egon-testnet-node-boot-01
-	"enode://441c74f4ea5d1fa791d2b49966a9c621117cbe9bf49c22348a01af6478db52bcbba6bcd3c04a53c63945f5d6e89f134b9fc81c724d57510c1269b8ab38776ba3@34.199.236.89:30303",  // egon-testnet-node-boot-02
+	"enode://d68153cd7b790598bcfe6305b23d2d26eefea17f01c4a87c2bfb08c75a0c48a198acc9689cfcfa023a7b2cf809e064a27f58574a93560362bb6ae22853d0244c@3.123.66.255:30303", // egon-testnet-node-boot-01
+	"enode://4413034f877eca3fb2c2dcd40354d02b418062a232f3f82fc268115c9bcec2f9c54d8de898fea9838447033fe7ca8b57f77df4cf049f8d8fef6602f12d1b6c87@34.199.236.89:30303",  // egon-testnet-node-boot-02
 }
 
 var V5Bootnodes []string
