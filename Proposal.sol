@@ -64,8 +64,6 @@ contract Params {
     }
 }
 
-pragma solidity >=0.6.0 <0.8.0;
-
 contract Proposal is Params {
     // How long a proposal will exist
     uint256 public constant proposalLastingPeriod = 7 days;
@@ -408,8 +406,6 @@ library SafeMath {
     }
 }
 
-pragma solidity >=0.6.0 <0.8.0;
-
 contract Punish is Params {
     uint16 public constant punishThreshold = 24;
     uint16 public constant removeThreshold = 48;
@@ -538,8 +534,6 @@ contract Punish is Params {
         return punishRecords[val].missedBlocksCounter;
     }
 }
-
-pragma solidity >=0.6.0 <0.8.0;
 
 contract Validators is Params {
     using SafeMath for uint256;

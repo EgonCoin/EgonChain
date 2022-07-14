@@ -63,7 +63,6 @@ contract Params {
         _;
     }
 }
-pragma solidity >=0.6.0 <0.8.0;
 
 contract Proposal is Params {
     // How long a proposal will exist
@@ -236,8 +235,6 @@ contract Proposal is Params {
         return true;
     }
 }
-
-pragma solidity >=0.6.0 <0.8.0;
 
 contract Punish is Params {
     uint16 public constant punishThreshold = 24;
@@ -537,8 +534,6 @@ library SafeMath {
         return a % b;
     }
 }
-
-pragma solidity >=0.6.0 <0.8.0;
 
 contract Validators is Params {
     using SafeMath for uint256;
