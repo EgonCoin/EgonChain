@@ -23,10 +23,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
-	"golang.org/x/crypto/sha3"
 )
 
 // InitDatabaseFromFreezer reinitializes an empty database from a previous batch
@@ -44,24 +44,29 @@ func InitDatabaseFromFreezer(db ethdb.Database) {
 		logged = start.Add(-7 * time.Second) // Unindex during import is fast, don't double log
 		hash   common.Hash
 	)
-	for i := uint64(0); i < frozen; i++ {
-		// Since the freezer has all data in sequential order on a file,
-		// it would be 'neat' to read more data in one go, and let the
-		// freezerdb return N items (e.g up to 1000 items per go)
-		// That would require an API change in Ancients though
-		if h, err := db.Ancient(freezerHashTable, i); err != nil {
+	for i := uint64(0); i < frozen; {
+		// We read 100K hashes at a time, for a total of 3.2M
+		count := uint64(100_000)
+		if i+count > frozen {
+			count = frozen - i
+		}
+		data, err := db.AncientRange(freezerHashTable, i, count, 32*count)
+		if err != nil {
 			log.Crit("Failed to init database from freezer", "err", err)
-		} else {
+		}
+		for j, h := range data {
+			number := i + uint64(j)
 			hash = common.BytesToHash(h)
-		}
-		WriteHeaderNumber(batch, hash, i)
-		// If enough data was accumulated in memory or we're at the last block, dump to disk
-		if batch.ValueSize() > ethdb.IdealBatchSize {
-			if err := batch.Write(); err != nil {
-				log.Crit("Failed to write data to db", "err", err)
+			WriteHeaderNumber(batch, hash, number)
+			// If enough data was accumulated in memory or we're at the last block, dump to disk
+			if batch.ValueSize() > ethdb.IdealBatchSize {
+				if err := batch.Write(); err != nil {
+					log.Crit("Failed to write data to db", "err", err)
+				}
+				batch.Reset()
 			}
-			batch.Reset()
 		}
+		i += uint64(len(data))
 		// If we've spent too much time already, notify the user of what we're doing
 		if time.Since(logged) > 8*time.Second {
 			log.Info("Initializing database from freezer", "total", frozen, "number", i, "hash", hash, "elapsed", common.PrettyDuration(time.Since(start)))
@@ -135,32 +140,15 @@ func iterateTransactions(db ethdb.Database, from uint64, to uint64, reverse bool
 				close(hashesCh)
 			}
 		}()
-
-		var hasher = sha3.NewLegacyKeccak256()
 		for data := range rlpCh {
-			it, err := rlp.NewListIterator(data.rlp)
-			if err != nil {
-				log.Warn("tx iteration error", "error", err)
-				return
-			}
-			it.Next()
-			txs := it.Value()
-			txIt, err := rlp.NewListIterator(txs)
-			if err != nil {
-				log.Warn("tx iteration error", "error", err)
+			var body types.Body
+			if err := rlp.DecodeBytes(data.rlp, &body); err != nil {
+				log.Warn("Failed to decode block body", "block", data.number, "error", err)
 				return
 			}
 			var hashes []common.Hash
-			for txIt.Next() {
-				if err := txIt.Err(); err != nil {
-					log.Warn("tx iteration error", "error", err)
-					return
-				}
-				var txHash common.Hash
-				hasher.Reset()
-				hasher.Write(txIt.Value())
-				hasher.Sum(txHash[:0])
-				hashes = append(hashes, txHash)
+			for _, tx := range body.Transactions {
+				hashes = append(hashes, tx.Hash())
 			}
 			result := &blockTxHashes{
 				hashes: hashes,

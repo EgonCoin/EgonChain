@@ -34,6 +34,7 @@ import (
 )
 
 var Memsize memsizeui.Handler
+var ID string
 
 var (
 	verbosityFlag = cli.IntFlag{
@@ -41,22 +42,33 @@ var (
 		Usage: "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail",
 		Value: 3,
 	}
-	logjsonFlag = cli.BoolFlag{
-		Name:  "log.json",
-		Usage: "Format logs with JSON",
+	logPathFlag = cli.StringFlag{
+		Name:  "logpath",
+		Usage: "File path for log files",
+		Value: "",
 	}
+
+	metricLogFlag = cli.BoolFlag{
+		Name:  "metriclog",
+		Usage: "Write metric info to log files",
+	}
+
 	vmoduleFlag = cli.StringFlag{
 		Name:  "vmodule",
 		Usage: "Per-module verbosity: comma-separated list of <pattern>=<level> (e.g. eth/*=5,p2p=4)",
 		Value: "",
 	}
+	logjsonFlag = cli.BoolFlag{
+		Name:  "log.json",
+		Usage: "Format logs with JSON",
+	}
 	backtraceAtFlag = cli.StringFlag{
-		Name:  "backtrace",
+		Name:  "log.backtrace",
 		Usage: "Request a stack trace at a specific logging statement (e.g. \"block.go:271\")",
 		Value: "",
 	}
 	debugFlag = cli.BoolFlag{
-		Name:  "debug",
+		Name:  "log.debug",
 		Usage: "Prepends log messages with call-site location (file and line number)",
 	}
 	pprofFlag = cli.BoolFlag{
@@ -94,13 +106,27 @@ var (
 
 // Flags holds all command-line flags required for debugging.
 var Flags = []cli.Flag{
-	verbosityFlag, logjsonFlag, vmoduleFlag, backtraceAtFlag, debugFlag,
-	pprofFlag, pprofAddrFlag, pprofPortFlag, memprofilerateFlag,
-	blockprofilerateFlag, cpuprofileFlag, traceFlag,
+	verbosityFlag,
+	logPathFlag,
+	vmoduleFlag,
+	logjsonFlag,
+	metricLogFlag,
+	backtraceAtFlag,
+	debugFlag,
+	pprofFlag,
+	pprofAddrFlag,
+	pprofPortFlag,
+	memprofilerateFlag,
+	blockprofilerateFlag,
+	cpuprofileFlag,
+	traceFlag,
 }
 
-var (
-	glogger *log.GlogHandler
+var glogger *log.GlogHandler
+
+const (
+	metricLogFile = "metric.log"
+	metricKey     = "metric"
 )
 
 func init() {
@@ -109,32 +135,93 @@ func init() {
 	log.Root().SetHandler(glogger)
 }
 
-// Setup initializes profiling and logging based on the CLI flags.
-// It should be called as early as possible in the program.
-func Setup(ctx *cli.Context) error {
-	var ostream log.Handler
+func setupLogHandler(ctx *cli.Context) (handler log.Handler) {
+	defer func() {
+		if !ctx.GlobalBool(metricLogFlag.Name) {
+			inner := handler
+			handler = log.FuncHandler(func(r *log.Record) error {
+				if r.Msg == metricKey {
+					return nil
+				}
+
+				return inner.Log(r)
+			})
+		}
+	}()
+
+	var format log.Format
 	output := io.Writer(os.Stderr)
 	if ctx.GlobalBool(logjsonFlag.Name) {
-		ostream = log.StreamHandler(output, log.JSONFormat())
+		format = log.JSONFormat()
 	} else {
 		usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
 		if usecolor {
 			output = colorable.NewColorableStderr()
 		}
-		ostream = log.StreamHandler(output, log.TerminalFormat(usecolor))
+		format = log.TerminalFormat(usecolor)
 	}
-	glogger.SetHandler(ostream)
+
+	if ctx.GlobalString(logPathFlag.Name) == "" {
+		handler = log.StreamHandler(output, format)
+		return
+	}
+
+	rConfig := log.NewRotateConfig()
+	rConfig.LogDir = ctx.GlobalString(logPathFlag.Name)
+	handler1 := log.NewFileRotateHandler(rConfig, format)
+	if !ctx.GlobalBool(metricLogFlag.Name) {
+		handler = handler1
+		return
+	}
+
+	mConfig := log.NewRotateConfig()
+	mConfig.LogDir = ctx.GlobalString(logPathFlag.Name)
+	mConfig.Filename = metricLogFile
+	handler2 := log.NewFileRotateHandler(mConfig, log.JSONFormat())
+
+	handler = log.FuncHandler(func(r *log.Record) error {
+		if r.Msg == metricKey {
+			r.Ctx = append(r.Ctx, "id", ID)
+			return handler2.Log(r)
+		} else {
+			return handler1.Log(r)
+		}
+	})
+
+	return
+}
+
+// Setup initializes profiling and logging based on the CLI flags.
+// It should be called as early as possible in the program.
+func Setup(ctx *cli.Context) error {
+	handler := setupLogHandler(ctx)
+	glogger.SetHandler(handler)
+
 	// logging
-	log.PrintOrigins(ctx.GlobalBool(debugFlag.Name))
-	glogger.Verbosity(log.Lvl(ctx.GlobalInt(verbosityFlag.Name)))
-	glogger.Vmodule(ctx.GlobalString(vmoduleFlag.Name))
-	glogger.BacktraceAt(ctx.GlobalString(backtraceAtFlag.Name))
+	verbosity := ctx.GlobalInt(verbosityFlag.Name)
+	glogger.Verbosity(log.Lvl(verbosity))
+	vmodule := ctx.GlobalString(vmoduleFlag.Name)
+	glogger.Vmodule(vmodule)
+
+	debug := ctx.GlobalBool(debugFlag.Name)
+	if ctx.GlobalIsSet(debugFlag.Name) {
+		debug = ctx.GlobalBool(debugFlag.Name)
+	}
+	log.PrintOrigins(debug)
+
+	backtrace := ctx.GlobalString(backtraceAtFlag.Name)
+	glogger.BacktraceAt(backtrace)
+
 	log.Root().SetHandler(glogger)
 
 	// profiling, tracing
-	runtime.MemProfileRate = ctx.GlobalInt(memprofilerateFlag.Name)
+	runtime.MemProfileRate = memprofilerateFlag.Value
+	if ctx.GlobalIsSet(memprofilerateFlag.Name) {
+		runtime.MemProfileRate = ctx.GlobalInt(memprofilerateFlag.Name)
+	}
 
-	Handler.SetBlockProfileRate(ctx.GlobalInt(blockprofilerateFlag.Name))
+	blockProfileRate := ctx.GlobalInt(blockprofilerateFlag.Name)
+	Handler.SetBlockProfileRate(blockProfileRate)
 
 	if traceFile := ctx.GlobalString(traceFlag.Name); traceFile != "" {
 		if err := Handler.StartGoTrace(traceFile); err != nil {

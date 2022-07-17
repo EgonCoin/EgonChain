@@ -33,14 +33,14 @@ type journalEntry interface {
 }
 
 // journal contains the list of state modifications applied since the last state
-// commit. These are tracked to be able to be reverted in case of an execution
-// exception or revertal request.
+// commit. These are tracked to be able to be reverted in the case of an execution
+// exception or request for reversal.
 type journal struct {
 	entries []journalEntry         // Current changes tracked by the journal
 	dirties map[common.Address]int // Dirty accounts and the number of changes
 }
 
-// newJournal create a new initialized journal.
+// newJournal creates a new initialized journal.
 func newJournal() *journal {
 	return &journal{
 		dirties: make(map[common.Address]int),
@@ -137,6 +137,12 @@ type (
 	accessListAddSlotChange struct {
 		address *common.Address
 		slot    *common.Hash
+	}
+
+	eraseChange struct {
+		account            *common.Address
+		prevcode, prevhash []byte
+		prevroot           common.Hash
 	}
 )
 
@@ -266,4 +272,13 @@ func (ch accessListAddSlotChange) revert(s *StateDB) {
 
 func (ch accessListAddSlotChange) dirtied() *common.Address {
 	return nil
+}
+
+func (ch eraseChange) revert(s *StateDB) {
+	obj := s.getStateObject(*ch.account)
+	obj.revertErase(common.BytesToHash(ch.prevhash), ch.prevcode, ch.prevroot)
+}
+
+func (ch eraseChange) dirtied() *common.Address {
+	return ch.account
 }

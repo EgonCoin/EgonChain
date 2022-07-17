@@ -126,7 +126,7 @@ func TestIntermediateLeaks(t *testing.T) {
 			t.Errorf("entry missing from the transition database: %x -> %x", key, fvalue)
 		}
 		if !bytes.Equal(fvalue, tvalue) {
-			t.Errorf("the value associate key %x is mismatch,: %x in transition database ,%x in final database", key, tvalue, fvalue)
+			t.Errorf("value mismatch at key %x: %x in transition database, %x in final database", key, tvalue, fvalue)
 		}
 	}
 	it.Release()
@@ -139,7 +139,7 @@ func TestIntermediateLeaks(t *testing.T) {
 			t.Errorf("extra entry in the transition database: %x -> %x", key, it.Value())
 		}
 		if !bytes.Equal(fvalue, tvalue) {
-			t.Errorf("the value associate key %x is mismatch,: %x in transition database ,%x in final database", key, tvalue, fvalue)
+			t.Errorf("value mismatch at key %x: %x in transition database, %x in final database", key, tvalue, fvalue)
 		}
 	}
 }
@@ -463,9 +463,9 @@ func (test *snapshotTest) checkEqual(state, checkstate *StateDB) error {
 		return fmt.Errorf("got GetRefund() == %d, want GetRefund() == %d",
 			state.GetRefund(), checkstate.GetRefund())
 	}
-	if !reflect.DeepEqual(state.GetLogs(common.Hash{}), checkstate.GetLogs(common.Hash{})) {
+	if !reflect.DeepEqual(state.GetLogs(common.Hash{}, common.Hash{}), checkstate.GetLogs(common.Hash{}, common.Hash{})) {
 		return fmt.Errorf("got GetLogs(common.Hash{}) == %v, want GetLogs(common.Hash{}) == %v",
-			state.GetLogs(common.Hash{}), checkstate.GetLogs(common.Hash{}))
+			state.GetLogs(common.Hash{}, common.Hash{}), checkstate.GetLogs(common.Hash{}, common.Hash{}))
 	}
 	return nil
 }
@@ -672,7 +672,7 @@ func TestDeleteCreateRevert(t *testing.T) {
 	// Create an initial state with a single contract
 	state, _ := New(common.Hash{}, NewDatabase(rawdb.NewMemoryDatabase()), nil)
 
-	addr := toAddr([]byte("so"))
+	addr := common.BytesToAddress([]byte("so"))
 	state.SetBalance(addr, big.NewInt(1))
 
 	root, _ := state.Commit(false)
@@ -705,11 +705,11 @@ func TestMissingTrieNodes(t *testing.T) {
 	db := NewDatabase(memDb)
 	var root common.Hash
 	state, _ := New(common.Hash{}, db, nil)
-	addr := toAddr([]byte("so"))
+	addr := common.BytesToAddress([]byte("so"))
 	{
 		state.SetBalance(addr, big.NewInt(1))
 		state.SetCode(addr, []byte{1, 2, 3})
-		a2 := toAddr([]byte("another"))
+		a2 := common.BytesToAddress([]byte("another"))
 		state.SetBalance(a2, big.NewInt(100))
 		state.SetCode(a2, []byte{1, 2, 4})
 		root, _ = state.Commit(false)
@@ -913,5 +913,62 @@ func TestStateDBAccessList(t *testing.T) {
 	}
 	if got, exp := len(state.accessList.slots), 1; got != exp {
 		t.Fatalf("expected empty, got %d", got)
+	}
+}
+
+func TestErase(t *testing.T) {
+	// Create an initial state with a single contract
+	db := NewDatabase(rawdb.NewMemoryDatabase())
+	state, _ := New(common.Hash{}, db, nil)
+
+	addr := common.BytesToAddress([]byte("so"))
+	state.SetBalance(addr, big.NewInt(1))
+	skey := common.HexToHash("aaa")
+	sval := common.HexToHash("bbb")
+
+	state.SetCode(addr, []byte("hello")) // Change an external metadata
+	state.SetState(addr, skey, sval)     // Change the storage trie
+
+	root, _ := state.Commit(false)
+	state, _ = New(root, db, nil)
+
+	// Simulate erase and then revert
+	id := state.Snapshot()
+	state.Erase(addr)
+	state.RevertToSnapshot(id)
+	root, _ = state.Commit(true)
+	state, _ = New(root, db, nil)
+
+	obj := state.getStateObject(addr)
+	if code := obj.Code(state.db); !bytes.Equal(code, []byte("hello")) {
+		t.Fatal("RevertToSnapshot failed after erase, code mismatch")
+	}
+	if val := obj.GetState(state.db, skey); val != sval {
+		t.Fatal("RevertToSnapshot failed after erase, storage mismatch")
+	}
+
+	state.Erase(addr)
+	// Commit the entire state and make sure we don't crash and have the correct state
+	root, _ = state.Commit(true)
+	state, _ = New(root, db, nil)
+
+	obj = state.getStateObject(addr)
+	if obj == nil {
+		t.Fatal("erase should not delete the account")
+	}
+	if code := obj.Code(state.db); len(code) > 0 {
+		t.Fatal("erase failed to clear the code")
+	}
+	if val := obj.GetState(state.db, skey); (val != common.Hash{}) {
+		t.Fatal("erase not clear the storage")
+	}
+	if obj.data.Root != emptyRoot {
+		t.Fatal("erase not clear the storage")
+	}
+	if !bytes.Equal(obj.CodeHash(), emptyCodeHash) {
+		t.Fatal("erase failed to clear the code hash")
+	}
+	if obj.Balance().Uint64() != uint64(1) {
+		t.Fatal("erase should not change balance")
 	}
 }
