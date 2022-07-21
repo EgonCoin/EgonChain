@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-//go:build !ios && !js
-// +build !ios,!js
+// +build !ios
 
 package metrics
 
@@ -30,10 +29,6 @@ func ReadCPUStats(stats *CPUStats) {
 	timeStats, err := cpu.Times(false)
 	if err != nil {
 		log.Error("Could not read cpu stats", "err", err)
-		return
-	}
-	if len(timeStats) == 0 {
-		log.Error("Empty cpu stats")
 		return
 	}
 	// requesting all cpu times will always return an array with only one time stats entry

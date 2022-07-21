@@ -22,11 +22,10 @@ import (
 	"math/big"
 	"math/rand"
 	"reflect"
-	"runtime"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum"
+	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
@@ -37,10 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-)
-
-var (
-	deadline = 5 * time.Minute
 )
 
 type testBackend struct {
@@ -168,8 +163,8 @@ func TestBlockSubscription(t *testing.T) {
 	var (
 		db          = rawdb.NewMemoryDatabase()
 		backend     = &testBackend{db: db}
-		api         = NewPublicFilterAPI(backend, false, deadline)
-		genesis     = (&core.Genesis{BaseFee: big.NewInt(params.InitialBaseFee)}).MustCommit(db)
+		api         = NewPublicFilterAPI(backend, false)
+		genesis     = new(core.Genesis).MustCommit(db)
 		chain, _    = core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 10, func(i int, gen *core.BlockGen) {})
 		chainEvents = []core.ChainEvent{}
 	)
@@ -220,7 +215,7 @@ func TestPendingTxFilter(t *testing.T) {
 	var (
 		db      = rawdb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend, false, deadline)
+		api     = NewPublicFilterAPI(backend, false)
 
 		transactions = []*types.Transaction{
 			types.NewTransaction(0, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil),
@@ -275,7 +270,7 @@ func TestLogFilterCreation(t *testing.T) {
 	var (
 		db      = rawdb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend, false, deadline)
+		api     = NewPublicFilterAPI(backend, false)
 
 		testCases = []struct {
 			crit    FilterCriteria
@@ -319,7 +314,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	var (
 		db      = rawdb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend, false, deadline)
+		api     = NewPublicFilterAPI(backend, false)
 	)
 
 	// different situations where log filter creation should fail.
@@ -341,7 +336,7 @@ func TestInvalidGetLogsRequest(t *testing.T) {
 	var (
 		db        = rawdb.NewMemoryDatabase()
 		backend   = &testBackend{db: db}
-		api       = NewPublicFilterAPI(backend, false, deadline)
+		api       = NewPublicFilterAPI(backend, false)
 		blockHash = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
 	)
 
@@ -366,7 +361,7 @@ func TestLogFilter(t *testing.T) {
 	var (
 		db      = rawdb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend, false, deadline)
+		api     = NewPublicFilterAPI(backend, false)
 
 		firstAddr      = common.HexToAddress("0x1111111111111111111111111111111111111111")
 		secondAddr     = common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -480,7 +475,7 @@ func TestPendingLogsSubscription(t *testing.T) {
 	var (
 		db      = rawdb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend, false, deadline)
+		api     = NewPublicFilterAPI(backend, false)
 
 		firstAddr      = common.HexToAddress("0x1111111111111111111111111111111111111111")
 		secondAddr     = common.HexToAddress("0x2222222222222222222222222222222222222222")
@@ -506,80 +501,58 @@ func TestPendingLogsSubscription(t *testing.T) {
 			},
 		}
 
-		pendingBlockNumber = big.NewInt(rpc.PendingBlockNumber.Int64())
-
 		testCases = []struct {
 			crit     ethereum.FilterQuery
 			expected []*types.Log
 			c        chan []*types.Log
 			sub      *Subscription
-			err      chan error
 		}{
 			// match all
 			{
-				ethereum.FilterQuery{FromBlock: pendingBlockNumber, ToBlock: pendingBlockNumber},
-				flattenLogs(allLogs),
-				nil, nil, nil,
+				ethereum.FilterQuery{}, flattenLogs(allLogs),
+				nil, nil,
 			},
 			// match none due to no matching addresses
 			{
-				ethereum.FilterQuery{Addresses: []common.Address{{}, notUsedAddress}, Topics: [][]common.Hash{nil}, FromBlock: pendingBlockNumber, ToBlock: pendingBlockNumber},
+				ethereum.FilterQuery{Addresses: []common.Address{{}, notUsedAddress}, Topics: [][]common.Hash{nil}},
 				nil,
-				nil, nil, nil,
+				nil, nil,
 			},
 			// match logs based on addresses, ignore topics
 			{
-				ethereum.FilterQuery{Addresses: []common.Address{firstAddr}, FromBlock: pendingBlockNumber, ToBlock: pendingBlockNumber},
+				ethereum.FilterQuery{Addresses: []common.Address{firstAddr}},
 				append(flattenLogs(allLogs[:2]), allLogs[5][3]),
-				nil, nil, nil,
+				nil, nil,
 			},
 			// match none due to no matching topics (match with address)
 			{
-				ethereum.FilterQuery{Addresses: []common.Address{secondAddr}, Topics: [][]common.Hash{{notUsedTopic}}, FromBlock: pendingBlockNumber, ToBlock: pendingBlockNumber},
-				nil,
+				ethereum.FilterQuery{Addresses: []common.Address{secondAddr}, Topics: [][]common.Hash{{notUsedTopic}}},
 				nil, nil, nil,
 			},
 			// match logs based on addresses and topics
 			{
-				ethereum.FilterQuery{Addresses: []common.Address{thirdAddress}, Topics: [][]common.Hash{{firstTopic, secondTopic}}, FromBlock: pendingBlockNumber, ToBlock: pendingBlockNumber},
+				ethereum.FilterQuery{Addresses: []common.Address{thirdAddress}, Topics: [][]common.Hash{{firstTopic, secondTopic}}},
 				append(flattenLogs(allLogs[3:5]), allLogs[5][0]),
-				nil, nil, nil,
+				nil, nil,
 			},
 			// match logs based on multiple addresses and "or" topics
 			{
-				ethereum.FilterQuery{Addresses: []common.Address{secondAddr, thirdAddress}, Topics: [][]common.Hash{{firstTopic, secondTopic}}, FromBlock: pendingBlockNumber, ToBlock: pendingBlockNumber},
+				ethereum.FilterQuery{Addresses: []common.Address{secondAddr, thirdAddress}, Topics: [][]common.Hash{{firstTopic, secondTopic}}},
 				append(flattenLogs(allLogs[2:5]), allLogs[5][0]),
-				nil, nil, nil,
+				nil,
+				nil,
+			},
+			// block numbers are ignored for filters created with New***Filter, these return all logs that match the given criteria when the state changes
+			{
+				ethereum.FilterQuery{Addresses: []common.Address{firstAddr}, FromBlock: big.NewInt(2), ToBlock: big.NewInt(3)},
+				append(flattenLogs(allLogs[:2]), allLogs[5][3]),
+				nil, nil,
 			},
 			// multiple pending logs, should match only 2 topics from the logs in block 5
 			{
-				ethereum.FilterQuery{Addresses: []common.Address{thirdAddress}, Topics: [][]common.Hash{{firstTopic, fourthTopic}}, FromBlock: pendingBlockNumber, ToBlock: pendingBlockNumber},
+				ethereum.FilterQuery{Addresses: []common.Address{thirdAddress}, Topics: [][]common.Hash{{firstTopic, fourthTopic}}},
 				[]*types.Log{allLogs[5][0], allLogs[5][2]},
-				nil, nil, nil,
-			},
-			// match none due to only matching new mined logs
-			{
-				ethereum.FilterQuery{},
-				nil,
-				nil, nil, nil,
-			},
-			// match none due to only matching mined logs within a specific block range
-			{
-				ethereum.FilterQuery{FromBlock: big.NewInt(1), ToBlock: big.NewInt(2)},
-				nil,
-				nil, nil, nil,
-			},
-			// match all due to matching mined and pending logs
-			{
-				ethereum.FilterQuery{FromBlock: big.NewInt(rpc.LatestBlockNumber.Int64()), ToBlock: big.NewInt(rpc.PendingBlockNumber.Int64())},
-				flattenLogs(allLogs),
-				nil, nil, nil,
-			},
-			// match none due to matching logs from a specific block number to new mined blocks
-			{
-				ethereum.FilterQuery{FromBlock: big.NewInt(1), ToBlock: big.NewInt(rpc.LatestBlockNumber.Int64())},
-				nil,
-				nil, nil, nil,
+				nil, nil,
 			},
 		}
 	)
@@ -589,135 +562,42 @@ func TestPendingLogsSubscription(t *testing.T) {
 	// (some) events are posted.
 	for i := range testCases {
 		testCases[i].c = make(chan []*types.Log)
-		testCases[i].err = make(chan error)
-
-		var err error
-		testCases[i].sub, err = api.events.SubscribeLogs(testCases[i].crit, testCases[i].c)
-		if err != nil {
-			t.Fatalf("SubscribeLogs %d failed: %v\n", i, err)
-		}
+		testCases[i].sub, _ = api.events.SubscribeLogs(testCases[i].crit, testCases[i].c)
 	}
 
 	for n, test := range testCases {
 		i := n
 		tt := test
 		go func() {
-			defer tt.sub.Unsubscribe()
-
 			var fetched []*types.Log
-
-			timeout := time.After(1 * time.Second)
 		fetchLoop:
 			for {
-				select {
-				case logs := <-tt.c:
-					// Do not break early if we've fetched greater, or equal,
-					// to the number of logs expected. This ensures we do not
-					// deadlock the filter system because it will do a blocking
-					// send on this channel if another log arrives.
-					fetched = append(fetched, logs...)
-				case <-timeout:
+				logs := <-tt.c
+				fetched = append(fetched, logs...)
+				if len(fetched) >= len(tt.expected) {
 					break fetchLoop
 				}
 			}
 
 			if len(fetched) != len(tt.expected) {
-				tt.err <- fmt.Errorf("invalid number of logs for case %d, want %d log(s), got %d", i, len(tt.expected), len(fetched))
-				return
+				panic(fmt.Sprintf("invalid number of logs for case %d, want %d log(s), got %d", i, len(tt.expected), len(fetched)))
 			}
 
 			for l := range fetched {
 				if fetched[l].Removed {
-					tt.err <- fmt.Errorf("expected log not to be removed for log %d in case %d", l, i)
-					return
+					panic(fmt.Sprintf("expected log not to be removed for log %d in case %d", l, i))
 				}
 				if !reflect.DeepEqual(fetched[l], tt.expected[l]) {
-					tt.err <- fmt.Errorf("invalid log on index %d for case %d\n", l, i)
-					return
+					panic(fmt.Sprintf("invalid log on index %d for case %d", l, i))
 				}
 			}
-			tt.err <- nil
 		}()
 	}
 
 	// raise events
+	time.Sleep(1 * time.Second)
 	for _, ev := range allLogs {
 		backend.pendingLogsFeed.Send(ev)
-	}
-
-	for i := range testCases {
-		err := <-testCases[i].err
-		if err != nil {
-			t.Fatalf("test %d failed: %v", i, err)
-		}
-		<-testCases[i].sub.Err()
-	}
-}
-
-// TestPendingTxFilterDeadlock tests if the event loop hangs when pending
-// txes arrive at the same time that one of multiple filters is timing out.
-// Please refer to #22131 for more details.
-func TestPendingTxFilterDeadlock(t *testing.T) {
-	t.Parallel()
-	timeout := 100 * time.Millisecond
-
-	var (
-		db      = rawdb.NewMemoryDatabase()
-		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend, false, timeout)
-		done    = make(chan struct{})
-	)
-
-	go func() {
-		// Bombard feed with txes until signal was received to stop
-		i := uint64(0)
-		for {
-			select {
-			case <-done:
-				return
-			default:
-			}
-
-			tx := types.NewTransaction(i, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil)
-			backend.txFeed.Send(core.NewTxsEvent{Txs: []*types.Transaction{tx}})
-			i++
-		}
-	}()
-
-	// Create a bunch of filters that will
-	// timeout either in 100ms or 200ms
-	fids := make([]rpc.ID, 20)
-	for i := 0; i < len(fids); i++ {
-		fid := api.NewPendingTransactionFilter()
-		fids[i] = fid
-		// Wait for at least one tx to arrive in filter
-		for {
-			hashes, err := api.GetFilterChanges(fid)
-			if err != nil {
-				t.Fatalf("Filter should exist: %v\n", err)
-			}
-			if len(hashes.([]common.Hash)) > 0 {
-				break
-			}
-			runtime.Gosched()
-		}
-	}
-
-	// Wait until filters have timed out
-	time.Sleep(3 * timeout)
-
-	// If tx loop doesn't consume `done` after a second
-	// it's hanging.
-	select {
-	case done <- struct{}{}:
-		// Check that all filters have been uninstalled
-		for _, fid := range fids {
-			if _, err := api.GetFilterChanges(fid); err == nil {
-				t.Errorf("Filter %s should have been uninstalled\n", fid)
-			}
-		}
-	case <-time.After(1 * time.Second):
-		t.Error("Tx sending loop hangs")
 	}
 }
 

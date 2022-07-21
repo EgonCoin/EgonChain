@@ -41,7 +41,6 @@ type hasher struct {
 	sha      crypto.KeccakState
 	tmp      sliceBuffer
 	parallel bool // Whether to use paralallel threads when hashing
-	dirties  *HashCache
 }
 
 // hasherPool holds pureHashers
@@ -60,14 +59,7 @@ func newHasher(parallel bool) *hasher {
 	return h
 }
 
-func newHasherWithCache(parallel bool, dirties *HashCache) *hasher {
-	h := newHasher(parallel)
-	h.dirties = dirties
-	return h
-}
-
 func returnHasherToPool(h *hasher) {
-	h.dirties = nil
 	hasherPool.Put(h)
 }
 
@@ -87,10 +79,6 @@ func (h *hasher) hash(n node, force bool) (hashed node, cached node) {
 		// small to be hashed
 		if hn, ok := hashed.(hashNode); ok {
 			cached.flags.hash = hn
-			// cache the node if it is newly created
-			if cached.flags.dirty && h.dirties != nil {
-				h.dirties.Put(hn, cached)
-			}
 		} else {
 			cached.flags.hash = nil
 		}
@@ -100,10 +88,6 @@ func (h *hasher) hash(n node, force bool) (hashed node, cached node) {
 		hashed = h.fullnodeToHash(collapsed, force)
 		if hn, ok := hashed.(hashNode); ok {
 			cached.flags.hash = hn
-			// cache the node if it is newly created
-			if cached.flags.dirty && h.dirties != nil {
-				h.dirties.Put(hn, cached)
-			}
 		} else {
 			cached.flags.hash = nil
 		}
@@ -141,7 +125,7 @@ func (h *hasher) hashFullNodeChildren(n *fullNode) (collapsed *fullNode, cached 
 		wg.Add(16)
 		for i := 0; i < 16; i++ {
 			go func(i int) {
-				hasher := newHasherWithCache(false, h.dirties)
+				hasher := newHasher(false)
 				if child := n.Children[i]; child != nil {
 					collapsed.Children[i], cached.Children[i] = hasher.hash(child, false)
 				} else {

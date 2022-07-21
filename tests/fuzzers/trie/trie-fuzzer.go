@@ -69,7 +69,7 @@ func newDataSource(input []byte) *dataSource {
 		input, bytes.NewReader(input),
 	}
 }
-func (ds *dataSource) readByte() byte {
+func (ds *dataSource) ReadByte() byte {
 	if b, err := ds.reader.ReadByte(); err != nil {
 		return 0
 	} else {
@@ -89,22 +89,22 @@ func Generate(input []byte) randTest {
 	r := newDataSource(input)
 	genKey := func() []byte {
 
-		if len(allKeys) < 2 || r.readByte() < 0x0f {
+		if len(allKeys) < 2 || r.ReadByte() < 0x0f {
 			// new key
-			key := make([]byte, r.readByte()%50)
+			key := make([]byte, r.ReadByte()%50)
 			r.Read(key)
 			allKeys = append(allKeys, key)
 			return key
 		}
 		// use existing key
-		return allKeys[int(r.readByte())%len(allKeys)]
+		return allKeys[int(r.ReadByte())%len(allKeys)]
 	}
 
 	var steps randTest
 
 	for i := 0; !r.Ended(); i++ {
 
-		step := randTestStep{op: int(r.readByte()) % opMax}
+		step := randTestStep{op: int(r.ReadByte()) % opMax}
 		switch step.op {
 		case opUpdate:
 			step.key = genKey()
@@ -122,22 +122,15 @@ func Generate(input []byte) randTest {
 	return steps
 }
 
-// The function must return
-// 1 if the fuzzer should increase priority of the
-//    given input during subsequent fuzzing (for example, the input is lexically
-//    correct and was parsed successfully);
-// -1 if the input must not be added to corpus even if gives new coverage; and
-// 0  otherwise
-// other values are reserved for future use.
 func Fuzz(input []byte) int {
 	program := Generate(input)
 	if len(program) == 0 {
-		return 0
+		return -1
 	}
 	if err := runRandTest(program); err != nil {
 		panic(err)
 	}
-	return 1
+	return 0
 }
 
 func runRandTest(rt randTest) error {
@@ -162,11 +155,11 @@ func runRandTest(rt randTest) error {
 				rt[i].err = fmt.Errorf("mismatch for key 0x%x, got 0x%x want 0x%x", step.key, v, want)
 			}
 		case opCommit:
-			_, _, rt[i].err = tr.Commit(nil)
+			_, rt[i].err = tr.Commit(nil)
 		case opHash:
 			tr.Hash()
 		case opReset:
-			hash, _, err := tr.Commit(nil)
+			hash, err := tr.Commit(nil)
 			if err != nil {
 				return err
 			}

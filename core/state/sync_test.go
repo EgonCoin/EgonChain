@@ -23,7 +23,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
@@ -63,8 +62,7 @@ func makeTestState() (Database, common.Hash, []*testAccount) {
 		}
 		if i%5 == 0 {
 			for j := byte(0); j < 5; j++ {
-				hash := crypto.Keccak256Hash([]byte{i, i, i, i, i, j, j})
-				obj.SetState(db, hash, hash)
+				obj.SetState(db, crypto.Keccak256Hash([]byte{i, i, i, i, i, j, j}), crypto.Keccak256Hash([]byte{i, i, i, i, i, j, j}))
 			}
 		}
 		state.updateStateObject(obj)
@@ -134,7 +132,7 @@ func checkStateConsistency(db ethdb.Database, root common.Hash) error {
 // Tests that an empty state is not scheduled for syncing.
 func TestEmptyStateSync(t *testing.T) {
 	empty := common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
-	sync := NewStateSync(empty, rawdb.NewMemoryDatabase(), trie.NewSyncBloom(1, memorydb.New()), nil)
+	sync := NewStateSync(empty, rawdb.NewMemoryDatabase(), trie.NewSyncBloom(1, memorydb.New()))
 	if nodes, paths, codes := sync.Missing(1); len(nodes) != 0 || len(paths) != 0 || len(codes) != 0 {
 		t.Errorf(" content requested for empty state: %v, %v, %v", nodes, paths, codes)
 	}
@@ -171,7 +169,7 @@ func testIterativeStateSync(t *testing.T, count int, commit bool, bypath bool) {
 
 	// Create a destination state and sync with the scheduler
 	dstDb := rawdb.NewMemoryDatabase()
-	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb), nil)
+	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb))
 
 	nodes, paths, codes := sched.Missing(count)
 	var (
@@ -204,7 +202,7 @@ func testIterativeStateSync(t *testing.T, count int, commit bool, bypath bool) {
 				}
 				results[len(hashQueue)+i] = trie.SyncResult{Hash: crypto.Keccak256Hash(data), Data: data}
 			} else {
-				var acc types.StateAccount
+				var acc Account
 				if err := rlp.DecodeBytes(srcTrie.Get(path[0]), &acc); err != nil {
 					t.Fatalf("failed to decode account on path %x: %v", path, err)
 				}
@@ -250,7 +248,7 @@ func TestIterativeDelayedStateSync(t *testing.T) {
 
 	// Create a destination state and sync with the scheduler
 	dstDb := rawdb.NewMemoryDatabase()
-	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb), nil)
+	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb))
 
 	nodes, _, codes := sched.Missing(0)
 	queue := append(append([]common.Hash{}, nodes...), codes...)
@@ -298,7 +296,7 @@ func testIterativeRandomStateSync(t *testing.T, count int) {
 
 	// Create a destination state and sync with the scheduler
 	dstDb := rawdb.NewMemoryDatabase()
-	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb), nil)
+	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb))
 
 	queue := make(map[common.Hash]struct{})
 	nodes, _, codes := sched.Missing(count)
@@ -348,7 +346,7 @@ func TestIterativeRandomDelayedStateSync(t *testing.T) {
 
 	// Create a destination state and sync with the scheduler
 	dstDb := rawdb.NewMemoryDatabase()
-	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb), nil)
+	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb))
 
 	queue := make(map[common.Hash]struct{})
 	nodes, _, codes := sched.Missing(0)
@@ -403,19 +401,20 @@ func TestIncompleteStateSync(t *testing.T) {
 	// Create a random state to copy
 	srcDb, srcRoot, srcAccounts := makeTestState()
 
-	// isCodeLookup to save some hashing
-	var isCode = make(map[common.Hash]struct{})
-	for _, acc := range srcAccounts {
-		if len(acc.code) > 0 {
-			isCode[crypto.Keccak256Hash(acc.code)] = struct{}{}
+	// isCode reports whether the hash is contract code hash.
+	isCode := func(hash common.Hash) bool {
+		for _, acc := range srcAccounts {
+			if hash == crypto.Keccak256Hash(acc.code) {
+				return true
+			}
 		}
+		return false
 	}
-	isCode[common.BytesToHash(emptyCodeHash)] = struct{}{}
 	checkTrieConsistency(srcDb.TrieDB().DiskDB().(ethdb.Database), srcRoot)
 
 	// Create a destination state and sync with the scheduler
 	dstDb := rawdb.NewMemoryDatabase()
-	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb), nil)
+	sched := NewStateSync(srcRoot, dstDb, trie.NewSyncBloom(1, dstDb))
 
 	var added []common.Hash
 
@@ -448,13 +447,15 @@ func TestIncompleteStateSync(t *testing.T) {
 		batch.Write()
 		for _, result := range results {
 			added = append(added, result.Hash)
-			// Check that all known sub-tries added so far are complete or missing entirely.
-			if _, ok := isCode[result.Hash]; ok {
+		}
+		// Check that all known sub-tries added so far are complete or missing entirely.
+		for _, hash := range added {
+			if isCode(hash) {
 				continue
 			}
 			// Can't use checkStateConsistency here because subtrie keys may have odd
 			// length and crash in LeafKey.
-			if err := checkTrieConsistency(dstDb, result.Hash); err != nil {
+			if err := checkTrieConsistency(dstDb, hash); err != nil {
 				t.Fatalf("state inconsistent: %v", err)
 			}
 		}
@@ -465,9 +466,9 @@ func TestIncompleteStateSync(t *testing.T) {
 	// Sanity check that removing any node from the database is detected
 	for _, node := range added[1:] {
 		var (
-			key     = node.Bytes()
-			_, code = isCode[node]
-			val     []byte
+			key  = node.Bytes()
+			code = isCode(node)
+			val  []byte
 		)
 		if code {
 			val = rawdb.ReadCode(dstDb, node)

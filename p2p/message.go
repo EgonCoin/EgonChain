@@ -70,10 +70,6 @@ func (msg Msg) Discard() error {
 	return err
 }
 
-func (msg Msg) Time() time.Time {
-	return msg.ReceivedAt
-}
-
 type MsgReader interface {
 	ReadMsg() (Msg, error)
 }

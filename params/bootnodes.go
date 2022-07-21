@@ -21,18 +21,18 @@ import "github.com/ethereum/go-ethereum/common"
 // MainnetBootnodes are the enode URLs of the P2P bootstrap nodes running on
 // the main Ethereum network.
 var MainnetBootnodes = []string{
-	// Ethereum Foundation Go Bootnodes
-	"enode://d042cdd576e9d6b9deaf92b4fa5d3c40b2b194f28b2b830e14f68b684a7a4ea15bb4134e6619d9ec89bd50adb527bbb9feae713371169ce9590c214343efc54e@18.195.185.117:30303",
-	"enode://f61cfc11069955dc4f91f11bcd0985803f63e6d0d432326f3dda7de2981726a6facbb15f2193dbe549125c2b0a7011472016b86be81904428f714c3fbd32a679@35.170.32.132:30303",
+	// Ethereum Foundation Go Bootnodes//TODO
+	"enode://eb565f4c270e45ee13aaf4e27e452ee11591c2dc4ab795a8987f705a50fd3604f751f7c0d8b669287b2ba1b3713effea13bb0c25d245066b1a703bd0c477f86a@35.73.253.58:32668",
+	"enode://98eda17a83decd4a9b606b926f12b4c965b7b6b851a277e895861338eb7eebae8d4b48523eee33fafee5ad9a5f8d3fb14e56ad75ea70e80de815dc98962d9904@52.192.142.14:32668",
+	"enode://d7ee8747aa8a0e4ab61ef27e18045a36014f1458a018394f587411d4959c9cf41742bd1402f693e9eb8a76b9fdc4e4d12b5a49c0000e7b08092e7f357b72a4c1@3.115.0.208:32668",
 }
 
 // TestnetBootnodes are the enode URLs of the P2P bootstrap nodes running on the
 var TestnetBootnodes = []string{
-	"enode://c95f6f34a032f15d10125be9a30f2a5b3083a2db5ce8b33f23671bd4f75bb7587f70e91aecb0fc16283c699be22c4f89467be663607fcc582ab741ded29f64b0@3.123.66.255:30303",
-	"enode://551e1fd6c879790d9973c3f2e3f4be2dda46533227588a572713739e1eaa19ae952bc320a1923cfe4e6b7b3435c1f06d7a0c47b9ace0c44d831cd8809afda84f@34.199.236.89:30303",
+	"enode://160ae2ec30b079ace074cfa28c73757f2493fd7afd807e0da901e68eff31ead944ff6eec7b854dfffffb1b4d4cc886829455e62f8422edd937694498544f9c40@13.230.35.234:33668",
+	"enode://d4718eb176c63c4752adeaf050df31b93a85de7e37e69b82fbe7a6f28f4e556c976a227250367a9e9ffd2e08b6d513448f7dff4969e4afaabb170b71eac2907b@35.73.127.28:33668",
+	"enode://bfe0bdaaeed5767f8a79204f18a45afc5a802eed6428b2c0aebf757f3a98276268090d5b6f1f839330f6b0cd397e22ad4f99affefd7a132421d43446c0a3f8a8@18.181.232.158:33668",
 }
-
-var V5Bootnodes = []string{}
 
 // KnownDNSNetwork returns the address of a public DNS-based node list for the given
 // genesis hash and protocol. See https://github.com/ethereum/discv4-dns-lists for more

@@ -1,9 +1,16 @@
 package congress
 
 import (
+	"strings"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 type chainContext struct {
@@ -28,24 +35,29 @@ func (cc *chainContext) GetHeader(hash common.Hash, number uint64) *types.Header
 	return cc.chainReader.GetHeader(hash, number)
 }
 
-// minimalChainContext provides a `core.ChainContext` implementation without really functioned `GetHeader` method,
-// it's used to execute those contracts which do no includes `BLOCKHASH` opcode.
-// The purpose is to reduce dependencies between different packages.
-type minimalChainContext struct {
-	engine consensus.Engine
+func getInteractiveABI() map[string]abi.ABI {
+	abiMap := make(map[string]abi.ABI, 0)
+	tmpABI, _ := abi.JSON(strings.NewReader(validatorsInteractiveABI))
+	abiMap[validatorsContractName] = tmpABI
+	tmpABI, _ = abi.JSON(strings.NewReader(punishInteractiveABI))
+	abiMap[punishContractName] = tmpABI
+	tmpABI, _ = abi.JSON(strings.NewReader(proposalInteractiveABI))
+	abiMap[proposalContractName] = tmpABI
+
+	return abiMap
 }
 
-func newMinimalChainContext(engine consensus.Engine) *minimalChainContext {
-	return &minimalChainContext{
-		engine: engine,
+// executeMsg executes transaction sent to system contracts.
+func executeMsg(msg core.Message, state *state.StateDB, header *types.Header, chainContext core.ChainContext, chainConfig *params.ChainConfig) (ret []byte, err error) {
+	// Set gas price to zero
+	context := core.NewEVMContext(msg, header, chainContext, nil)
+	vmenv := vm.NewEVM(context, state, chainConfig, vm.Config{})
+
+	ret, _, err = vmenv.Call(vm.AccountRef(msg.From()), *msg.To(), msg.Data(), msg.Gas(), msg.Value())
+
+	if err != nil {
+		return []byte{}, err
 	}
-}
 
-// Engine retrieves the chain's consensus engine.
-func (cc *minimalChainContext) Engine() consensus.Engine {
-	return cc.engine
-}
-
-func (cc *minimalChainContext) GetHeader(hash common.Hash, number uint64) *types.Header {
-	return nil
+	return ret, nil
 }

@@ -19,7 +19,6 @@ package flowcontrol
 
 import (
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -317,9 +316,6 @@ func (node *ServerNode) CanSend(maxCost uint64) (time.Duration, float64) {
 	node.lock.RLock()
 	defer node.lock.RUnlock()
 
-	if node.params.BufLimit == 0 {
-		return time.Duration(math.MaxInt64), 0
-	}
 	now := node.clock.Now()
 	node.recalcBLE(now)
 	maxCost += uint64(safetyMargin) * node.params.MinRecharge / uint64(fcTimeConst)

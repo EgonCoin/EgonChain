@@ -140,9 +140,8 @@ func (ethash *Ethash) mine(block *types.Block, id int, seed uint64, abort chan s
 	)
 	// Start generating random nonces until we abort or find a good one
 	var (
-		attempts  = int64(0)
-		nonce     = seed
-		powBuffer = new(big.Int)
+		attempts = int64(0)
+		nonce    = seed
 	)
 	logger := ethash.config.Log.New("miner", id)
 	logger.Trace("Started ethash search for new nonces", "seed", seed)
@@ -164,7 +163,7 @@ search:
 			}
 			// Compute the PoW value of this nonce
 			digest, result := hashimotoFull(dataset.dataset, hash, nonce)
-			if powBuffer.SetBytes(result).Cmp(target) <= 0 {
+			if new(big.Int).SetBytes(result).Cmp(target) <= 0 {
 				// Correct nonce found, create a new header with it
 				header = types.CopyHeader(header)
 				header.Nonce = types.EncodeNonce(nonce)
@@ -359,16 +358,7 @@ func (s *remoteSealer) makeWork(block *types.Block) {
 // new work to be processed.
 func (s *remoteSealer) notifyWork() {
 	work := s.currentWork
-
-	// Encode the JSON payload of the notification. When NotifyFull is set,
-	// this is the complete block header, otherwise it is a JSON array.
-	var blob []byte
-	if s.ethash.config.NotifyFull {
-		blob, _ = json.Marshal(s.currentBlock.Header())
-	} else {
-		blob, _ = json.Marshal(work)
-	}
-
+	blob, _ := json.Marshal(work)
 	s.reqWG.Add(len(s.notifyURLs))
 	for _, url := range s.notifyURLs {
 		go s.sendNotification(s.notifyCtx, url, blob, work)

@@ -46,10 +46,10 @@ func TestTestMode(t *testing.T) {
 	case block := <-results:
 		header.Nonce = types.EncodeNonce(block.Nonce())
 		header.MixDigest = block.MixDigest()
-		if err := ethash.verifySeal(nil, header, false); err != nil {
+		if err := ethash.VerifySeal(nil, header); err != nil {
 			t.Fatalf("unexpected verification error: %v", err)
 		}
-	case <-time.NewTimer(4 * time.Second).C:
+	case <-time.NewTimer(2 * time.Second).C:
 		t.Error("sealing result timeout")
 	}
 }
@@ -62,14 +62,7 @@ func TestCacheFileEvict(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpdir)
-
-	config := Config{
-		CachesInMem:  3,
-		CachesOnDisk: 10,
-		CacheDir:     tmpdir,
-		PowMode:      ModeTest,
-	}
-	e := New(config, nil, false)
+	e := New(Config{CachesInMem: 3, CachesOnDisk: 10, CacheDir: tmpdir, PowMode: ModeTest}, nil, false)
 	defer e.Close()
 
 	workers := 8
@@ -93,7 +86,7 @@ func verifyTest(wg *sync.WaitGroup, e *Ethash, workerIndex, epochs int) {
 			block = 0
 		}
 		header := &types.Header{Number: big.NewInt(block), Difficulty: big.NewInt(100)}
-		e.verifySeal(nil, header, false)
+		e.VerifySeal(nil, header)
 	}
 }
 
@@ -135,7 +128,7 @@ func TestRemoteSealer(t *testing.T) {
 	}
 }
 
-func TestHashrate(t *testing.T) {
+func TestHashRate(t *testing.T) {
 	var (
 		hashrate = []hexutil.Uint64{100, 200, 300}
 		expect   uint64
@@ -150,7 +143,7 @@ func TestHashrate(t *testing.T) {
 
 	api := &API{ethash}
 	for i := 0; i < len(hashrate); i += 1 {
-		if res := api.SubmitHashrate(hashrate[i], ids[i]); !res {
+		if res := api.SubmitHashRate(hashrate[i], ids[i]); !res {
 			t.Error("remote miner submit hashrate failed")
 		}
 		expect += uint64(hashrate[i])
@@ -170,7 +163,7 @@ func TestClosedRemoteSealer(t *testing.T) {
 		t.Error("expect to return an error to indicate ethash is stopped")
 	}
 
-	if res := api.SubmitHashrate(hexutil.Uint64(100), common.HexToHash("a")); res {
+	if res := api.SubmitHashRate(hexutil.Uint64(100), common.HexToHash("a")); res {
 		t.Error("expect to return false when submit hashrate to a stopped ethash")
 	}
 }

@@ -28,13 +28,12 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/metrics/exp"
 	"github.com/fjl/memsize/memsizeui"
-	"github.com/mattn/go-colorable"
+	colorable "github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
 	"gopkg.in/urfave/cli.v1"
 )
 
 var Memsize memsizeui.Handler
-var ID string
 
 var (
 	verbosityFlag = cli.IntFlag{
@@ -47,28 +46,18 @@ var (
 		Usage: "File path for log files",
 		Value: "",
 	}
-
-	metricLogFlag = cli.BoolFlag{
-		Name:  "metriclog",
-		Usage: "Write metric info to log files",
-	}
-
 	vmoduleFlag = cli.StringFlag{
 		Name:  "vmodule",
 		Usage: "Per-module verbosity: comma-separated list of <pattern>=<level> (e.g. eth/*=5,p2p=4)",
 		Value: "",
 	}
-	logjsonFlag = cli.BoolFlag{
-		Name:  "log.json",
-		Usage: "Format logs with JSON",
-	}
 	backtraceAtFlag = cli.StringFlag{
-		Name:  "log.backtrace",
+		Name:  "backtrace",
 		Usage: "Request a stack trace at a specific logging statement (e.g. \"block.go:271\")",
 		Value: "",
 	}
 	debugFlag = cli.BoolFlag{
-		Name:  "log.debug",
+		Name:  "debug",
 		Usage: "Prepends log messages with call-site location (file and line number)",
 	}
 	pprofFlag = cli.BoolFlag{
@@ -102,126 +91,86 @@ var (
 		Name:  "trace",
 		Usage: "Write execution trace to the given file",
 	}
+	// (Deprecated April 2020)
+	legacyPprofPortFlag = cli.IntFlag{
+		Name:  "pprofport",
+		Usage: "pprof HTTP server listening port (deprecated, use --pprof.port)",
+		Value: 6060,
+	}
+	legacyPprofAddrFlag = cli.StringFlag{
+		Name:  "pprofaddr",
+		Usage: "pprof HTTP server listening interface (deprecated, use --pprof.addr)",
+		Value: "127.0.0.1",
+	}
+	legacyMemprofilerateFlag = cli.IntFlag{
+		Name:  "memprofilerate",
+		Usage: "Turn on memory profiling with the given rate (deprecated, use --pprof.memprofilerate)",
+		Value: runtime.MemProfileRate,
+	}
+	legacyBlockprofilerateFlag = cli.IntFlag{
+		Name:  "blockprofilerate",
+		Usage: "Turn on block profiling with the given rate (deprecated, use --pprof.blockprofilerate)",
+	}
+	legacyCpuprofileFlag = cli.StringFlag{
+		Name:  "cpuprofile",
+		Usage: "Write CPU profile to the given file (deprecated, use --pprof.cpuprofile)",
+	}
 )
 
 // Flags holds all command-line flags required for debugging.
 var Flags = []cli.Flag{
-	verbosityFlag,
-	logPathFlag,
-	vmoduleFlag,
-	logjsonFlag,
-	metricLogFlag,
-	backtraceAtFlag,
-	debugFlag,
-	pprofFlag,
-	pprofAddrFlag,
-	pprofPortFlag,
-	memprofilerateFlag,
-	blockprofilerateFlag,
-	cpuprofileFlag,
-	traceFlag,
+	verbosityFlag, logPathFlag, vmoduleFlag, backtraceAtFlag, debugFlag,
+	pprofFlag, pprofAddrFlag, pprofPortFlag, memprofilerateFlag,
+	blockprofilerateFlag, cpuprofileFlag, traceFlag,
 }
 
-var glogger *log.GlogHandler
+var DeprecatedFlags = []cli.Flag{
+	legacyPprofPortFlag, legacyPprofAddrFlag, legacyMemprofilerateFlag,
+	legacyBlockprofilerateFlag, legacyCpuprofileFlag,
+}
 
-const (
-	metricLogFile = "metric.log"
-	metricKey     = "metric"
+var (
+	glogger *log.GlogHandler
 )
-
-func init() {
-	glogger = log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
-	glogger.Verbosity(log.LvlInfo)
-	log.Root().SetHandler(glogger)
-}
-
-func setupLogHandler(ctx *cli.Context) (handler log.Handler) {
-	defer func() {
-		if !ctx.GlobalBool(metricLogFlag.Name) {
-			inner := handler
-			handler = log.FuncHandler(func(r *log.Record) error {
-				if r.Msg == metricKey {
-					return nil
-				}
-
-				return inner.Log(r)
-			})
-		}
-	}()
-
-	var format log.Format
-	output := io.Writer(os.Stderr)
-	if ctx.GlobalBool(logjsonFlag.Name) {
-		format = log.JSONFormat()
-	} else {
-		usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
-		if usecolor {
-			output = colorable.NewColorableStderr()
-		}
-		format = log.TerminalFormat(usecolor)
-	}
-
-	if ctx.GlobalString(logPathFlag.Name) == "" {
-		handler = log.StreamHandler(output, format)
-		return
-	}
-
-	rConfig := log.NewRotateConfig()
-	rConfig.LogDir = ctx.GlobalString(logPathFlag.Name)
-	handler1 := log.NewFileRotateHandler(rConfig, format)
-	if !ctx.GlobalBool(metricLogFlag.Name) {
-		handler = handler1
-		return
-	}
-
-	mConfig := log.NewRotateConfig()
-	mConfig.LogDir = ctx.GlobalString(logPathFlag.Name)
-	mConfig.Filename = metricLogFile
-	handler2 := log.NewFileRotateHandler(mConfig, log.JSONFormat())
-
-	handler = log.FuncHandler(func(r *log.Record) error {
-		if r.Msg == metricKey {
-			r.Ctx = append(r.Ctx, "id", ID)
-			return handler2.Log(r)
-		} else {
-			return handler1.Log(r)
-		}
-	})
-
-	return
-}
 
 // Setup initializes profiling and logging based on the CLI flags.
 // It should be called as early as possible in the program.
 func Setup(ctx *cli.Context) error {
-	handler := setupLogHandler(ctx)
-	glogger.SetHandler(handler)
-
 	// logging
-	verbosity := ctx.GlobalInt(verbosityFlag.Name)
-	glogger.Verbosity(log.Lvl(verbosity))
-	vmodule := ctx.GlobalString(vmoduleFlag.Name)
-	glogger.Vmodule(vmodule)
+	usecolor := (isatty.IsTerminal(os.Stderr.Fd()) || isatty.IsCygwinTerminal(os.Stderr.Fd())) && os.Getenv("TERM") != "dumb"
 
-	debug := ctx.GlobalBool(debugFlag.Name)
-	if ctx.GlobalIsSet(debugFlag.Name) {
-		debug = ctx.GlobalBool(debugFlag.Name)
+	var handler log.Handler
+	if ctx.GlobalString(logPathFlag.Name) != "" {
+		rConfig := log.NewRotateConfig()
+		rConfig.LogDir = ctx.GlobalString(logPathFlag.Name)
+		handler = log.NewFileRotateHandler(rConfig, log.TerminalFormat(usecolor))
+	} else {
+		output := io.Writer(os.Stderr)
+		if usecolor {
+			output = colorable.NewColorableStderr()
+		}
+		handler = log.StreamHandler(output, log.TerminalFormat(usecolor))
 	}
-	log.PrintOrigins(debug)
+	glogger = log.NewGlogHandler(handler)
 
-	backtrace := ctx.GlobalString(backtraceAtFlag.Name)
-	glogger.BacktraceAt(backtrace)
-
+	log.PrintOrigins(ctx.GlobalBool(debugFlag.Name))
+	glogger.Verbosity(log.Lvl(ctx.GlobalInt(verbosityFlag.Name)))
+	glogger.Vmodule(ctx.GlobalString(vmoduleFlag.Name))
+	glogger.BacktraceAt(ctx.GlobalString(backtraceAtFlag.Name))
 	log.Root().SetHandler(glogger)
 
 	// profiling, tracing
-	runtime.MemProfileRate = memprofilerateFlag.Value
-	if ctx.GlobalIsSet(memprofilerateFlag.Name) {
-		runtime.MemProfileRate = ctx.GlobalInt(memprofilerateFlag.Name)
+	if ctx.GlobalIsSet(legacyMemprofilerateFlag.Name) {
+		runtime.MemProfileRate = ctx.GlobalInt(legacyMemprofilerateFlag.Name)
+		log.Warn("The flag --memprofilerate is deprecated and will be removed in the future, please use --pprof.memprofilerate")
 	}
+	runtime.MemProfileRate = ctx.GlobalInt(memprofilerateFlag.Name)
 
-	blockProfileRate := ctx.GlobalInt(blockprofilerateFlag.Name)
-	Handler.SetBlockProfileRate(blockProfileRate)
+	if ctx.GlobalIsSet(legacyBlockprofilerateFlag.Name) {
+		Handler.SetBlockProfileRate(ctx.GlobalInt(legacyBlockprofilerateFlag.Name))
+		log.Warn("The flag --blockprofilerate is deprecated and will be removed in the future, please use --pprof.blockprofilerate")
+	}
+	Handler.SetBlockProfileRate(ctx.GlobalInt(blockprofilerateFlag.Name))
 
 	if traceFile := ctx.GlobalString(traceFlag.Name); traceFile != "" {
 		if err := Handler.StartGoTrace(traceFile); err != nil {
@@ -234,12 +183,26 @@ func Setup(ctx *cli.Context) error {
 			return err
 		}
 	}
+	if cpuFile := ctx.GlobalString(legacyCpuprofileFlag.Name); cpuFile != "" {
+		log.Warn("The flag --cpuprofile is deprecated and will be removed in the future, please use --pprof.cpuprofile")
+		if err := Handler.StartCPUProfile(cpuFile); err != nil {
+			return err
+		}
+	}
 
 	// pprof server
 	if ctx.GlobalBool(pprofFlag.Name) {
 		listenHost := ctx.GlobalString(pprofAddrFlag.Name)
+		if ctx.GlobalIsSet(legacyPprofAddrFlag.Name) && !ctx.GlobalIsSet(pprofAddrFlag.Name) {
+			listenHost = ctx.GlobalString(legacyPprofAddrFlag.Name)
+			log.Warn("The flag --pprofaddr is deprecated and will be removed in the future, please use --pprof.addr")
+		}
 
 		port := ctx.GlobalInt(pprofPortFlag.Name)
+		if ctx.GlobalIsSet(legacyPprofPortFlag.Name) && !ctx.GlobalIsSet(pprofPortFlag.Name) {
+			port = ctx.GlobalInt(legacyPprofPortFlag.Name)
+			log.Warn("The flag --pprofport is deprecated and will be removed in the future, please use --pprof.port")
+		}
 
 		address := fmt.Sprintf("%s:%d", listenHost, port)
 		// This context value ("metrics.addr") represents the utils.MetricsHTTPFlag.Name.

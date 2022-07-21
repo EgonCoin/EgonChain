@@ -18,10 +18,9 @@ package rlp
 
 import (
 	"bytes"
-	"errors"
 	"io"
+	"reflect"
 	"testing"
-	"testing/quick"
 )
 
 func TestCountValues(t *testing.T) {
@@ -54,7 +53,7 @@ func TestCountValues(t *testing.T) {
 		if count != test.count {
 			t.Errorf("test %d: count mismatch, got %d want %d\ninput: %s", i, count, test.count, test.input)
 		}
-		if !errors.Is(err, test.err) {
+		if !reflect.DeepEqual(err, test.err) {
 			t.Errorf("test %d: err mismatch, got %q want %q\ninput: %s", i, err, test.err, test.input)
 		}
 	}
@@ -238,48 +237,5 @@ func TestReadSize(t *testing.T) {
 		if size != test.size {
 			t.Errorf("readSize(%s, %d): size mismatch: got %#x, want %#x", test.input, test.slen, size, test.size)
 		}
-	}
-}
-
-func TestAppendUint64(t *testing.T) {
-	tests := []struct {
-		input  uint64
-		slice  []byte
-		output string
-	}{
-		{0, nil, "80"},
-		{1, nil, "01"},
-		{2, nil, "02"},
-		{127, nil, "7F"},
-		{128, nil, "8180"},
-		{129, nil, "8181"},
-		{0xFFFFFF, nil, "83FFFFFF"},
-		{127, []byte{1, 2, 3}, "0102037F"},
-		{0xFFFFFF, []byte{1, 2, 3}, "01020383FFFFFF"},
-	}
-
-	for _, test := range tests {
-		x := AppendUint64(test.slice, test.input)
-		if !bytes.Equal(x, unhex(test.output)) {
-			t.Errorf("AppendUint64(%v, %d): got %x, want %s", test.slice, test.input, x, test.output)
-		}
-
-		// Check that IntSize returns the appended size.
-		length := len(x) - len(test.slice)
-		if s := IntSize(test.input); s != length {
-			t.Errorf("IntSize(%d): got %d, want %d", test.input, s, length)
-		}
-	}
-}
-
-func TestAppendUint64Random(t *testing.T) {
-	fn := func(i uint64) bool {
-		enc, _ := EncodeToBytes(i)
-		encAppend := AppendUint64(nil, i)
-		return bytes.Equal(enc, encAppend)
-	}
-	config := quick.Config{MaxCountScale: 50}
-	if err := quick.Check(fn, &config); err != nil {
-		t.Fatal(err)
 	}
 }

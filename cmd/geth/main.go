@@ -19,7 +19,9 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
+	godebug "runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,12 +41,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-
-	// Force-load the tracer engines to trigger registration
-	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
-	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
-
-	"gopkg.in/urfave/cli.v1"
+	gopsutil "github.com/shirou/gopsutil/mem"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 const (
@@ -63,15 +61,14 @@ var (
 		utils.UnlockedAccountFlag,
 		utils.PasswordFileFlag,
 		utils.BootnodesFlag,
+		utils.LegacyBootnodesV4Flag,
+		utils.LegacyBootnodesV5Flag,
 		utils.DataDirFlag,
 		utils.AncientFlag,
-		utils.MinFreeDiskSpaceFlag,
 		utils.KeyStoreDirFlag,
 		utils.ExternalSignerFlag,
 		utils.NoUSBFlag,
-		utils.USBFlag,
 		utils.SmartCardDaemonPathFlag,
-		utils.OverrideArrowGlacierFlag,
 		utils.EthashCacheDirFlag,
 		utils.EthashCachesInMemoryFlag,
 		utils.EthashCachesOnDiskFlag,
@@ -97,17 +94,17 @@ var (
 		utils.SnapshotFlag,
 		utils.TxLookupLimitFlag,
 		utils.LightServeFlag,
+		utils.LegacyLightServFlag,
 		utils.LightIngressFlag,
 		utils.LightEgressFlag,
 		utils.LightMaxPeersFlag,
+		utils.LegacyLightPeersFlag,
 		utils.LightNoPruneFlag,
 		utils.LightKDFFlag,
 		utils.UltraLightServersFlag,
 		utils.UltraLightFractionFlag,
 		utils.UltraLightOnlyAnnounceFlag,
-		utils.LightNoSyncServeFlag,
 		utils.WhitelistFlag,
-		utils.BloomFilterSizeFlag,
 		utils.CacheFlag,
 		utils.CacheDatabaseFlag,
 		utils.CacheTrieFlag,
@@ -116,20 +113,24 @@ var (
 		utils.CacheGCFlag,
 		utils.CacheSnapshotFlag,
 		utils.CacheNoPrefetchFlag,
-		utils.CachePreimagesFlag,
 		utils.ListenPortFlag,
 		utils.MaxPeersFlag,
 		utils.MaxPendingPeersFlag,
 		utils.MiningEnabledFlag,
 		utils.MinerThreadsFlag,
+		utils.LegacyMinerThreadsFlag,
 		utils.MinerNotifyFlag,
+		utils.MinerGasTargetFlag,
 		utils.LegacyMinerGasTargetFlag,
 		utils.MinerGasLimitFlag,
 		utils.MinerGasPriceFlag,
+		utils.LegacyMinerGasPriceFlag,
 		utils.MinerEtherbaseFlag,
+		utils.LegacyMinerEtherbaseFlag,
 		utils.MinerExtraDataFlag,
+		utils.LegacyMinerExtraDataFlag,
 		utils.MinerRecommitIntervalFlag,
-		utils.MinerNoVerifyFlag,
+		utils.MinerNoVerfiyFlag,
 		utils.NATFlag,
 		utils.NoDiscoverFlag,
 		utils.DiscoveryV5Flag,
@@ -137,7 +138,6 @@ var (
 		utils.NodeKeyFileFlag,
 		utils.NodeKeyHexFlag,
 		utils.DNSDiscoveryFlag,
-		utils.MainnetFlag,
 		utils.DeveloperFlag,
 		utils.DeveloperPeriodFlag,
 		utils.TestnetFlag,
@@ -147,12 +147,13 @@ var (
 		utils.FakePoWFlag,
 		utils.NoCompactionFlag,
 		utils.GpoBlocksFlag,
+		utils.LegacyGpoBlocksFlag,
 		utils.GpoPercentileFlag,
+		utils.LegacyGpoPercentileFlag,
 		utils.GpoMaxGasPriceFlag,
-		utils.GpoIgnoreGasPriceFlag,
-		utils.MinerNotifyFullFlag,
+		utils.EWASMInterpreterFlag,
+		utils.EVMInterpreterFlag,
 		configFileFlag,
-		utils.CatalystFlag,
 	}
 
 	rpcFlags = []cli.Flag{
@@ -161,24 +162,37 @@ var (
 		utils.HTTPPortFlag,
 		utils.HTTPCORSDomainFlag,
 		utils.HTTPVirtualHostsFlag,
+		utils.LegacyRPCEnabledFlag,
+		utils.LegacyRPCListenAddrFlag,
+		utils.LegacyRPCPortFlag,
+		utils.LegacyRPCCORSDomainFlag,
+		utils.LegacyRPCVirtualHostsFlag,
 		utils.GraphQLEnabledFlag,
 		utils.GraphQLCORSDomainFlag,
 		utils.GraphQLVirtualHostsFlag,
 		utils.HTTPApiFlag,
-		utils.HTTPPathPrefixFlag,
+		utils.LegacyRPCApiFlag,
 		utils.WSEnabledFlag,
 		utils.WSListenAddrFlag,
+		utils.LegacyWSListenAddrFlag,
 		utils.WSPortFlag,
+		utils.LegacyWSPortFlag,
 		utils.WSApiFlag,
+		utils.LegacyWSApiFlag,
 		utils.WSAllowedOriginsFlag,
-		utils.WSPathPrefixFlag,
+		utils.LegacyWSAllowedOriginsFlag,
 		utils.IPCDisabledFlag,
 		utils.IPCPathFlag,
 		utils.InsecureUnlockAllowedFlag,
 		utils.RPCGlobalGasCapFlag,
-		utils.RPCGlobalEVMTimeoutFlag,
 		utils.RPCGlobalTxFeeCapFlag,
-		utils.AllowUnprotectedTxs,
+	}
+
+	whisperFlags = []cli.Flag{
+		utils.WhisperEnabledFlag,
+		utils.WhisperMaxMessageSizeFlag,
+		utils.WhisperMinPOWFlag,
+		utils.WhisperRestrictConnectionBetweenLightClientsFlag,
 	}
 
 	metricsFlags = []cli.Flag{
@@ -192,10 +206,6 @@ var (
 		utils.MetricsInfluxDBUsernameFlag,
 		utils.MetricsInfluxDBPasswordFlag,
 		utils.MetricsInfluxDBTagsFlag,
-		utils.MetricsEnableInfluxDBV2Flag,
-		utils.MetricsInfluxDBTokenFlag,
-		utils.MetricsInfluxDBBucketFlag,
-		utils.MetricsInfluxDBOrganizationFlag,
 	}
 )
 
@@ -203,7 +213,7 @@ func init() {
 	// Initialize the CLI app and start Geth
 	app.Action = geth
 	app.HideVersion = true // we have a command to print the version
-	app.Copyright = "Copyright 2013-2021 The go-ethereum Authors"
+	app.Copyright = "Copyright 2013-2020 The go-ethereum Authors"
 	app.Commands = []cli.Command{
 		// See chaincmd.go:
 		initCommand,
@@ -211,9 +221,11 @@ func init() {
 		exportCommand,
 		importPreimagesCommand,
 		exportPreimagesCommand,
+		copydbCommand,
 		removedbCommand,
 		dumpCommand,
 		dumpGenesisCommand,
+		inspectCommand,
 		// See accountcmd.go:
 		accountCommand,
 		walletCommand,
@@ -225,16 +237,13 @@ func init() {
 		makecacheCommand,
 		makedagCommand,
 		versionCommand,
-		versionCheckCommand,
 		licenseCommand,
 		// See config.go
 		dumpConfigCommand,
-		// see dbcmd.go
-		dbCommand,
+		// See retesteth.go
+		retestethCommand,
 		// See cmd/utils/flags_legacy.go
 		utils.ShowDeprecated,
-		// See snapshot.go
-		snapshotCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 
@@ -242,6 +251,8 @@ func init() {
 	app.Flags = append(app.Flags, rpcFlags...)
 	app.Flags = append(app.Flags, consoleFlags...)
 	app.Flags = append(app.Flags, debug.Flags...)
+	app.Flags = append(app.Flags, debug.DeprecatedFlags...)
+	app.Flags = append(app.Flags, whisperFlags...)
 	app.Flags = append(app.Flags, metricsFlags...)
 
 	app.Before = func(ctx *cli.Context) error {
@@ -287,6 +298,25 @@ func prepare(ctx *cli.Context) {
 		log.Info("Dropping default light client cache", "provided", ctx.GlobalInt(utils.CacheFlag.Name), "updated", 128)
 		ctx.GlobalSet(utils.CacheFlag.Name, strconv.Itoa(128))
 	}
+	// Cap the cache allowance and tune the garbage collector
+	mem, err := gopsutil.VirtualMemory()
+	if err == nil {
+		if 32<<(^uintptr(0)>>63) == 32 && mem.Total > 2*1024*1024*1024 {
+			log.Warn("Lowering memory allowance on 32bit arch", "available", mem.Total/1024/1024, "addressable", 2*1024)
+			mem.Total = 2 * 1024 * 1024 * 1024
+		}
+		allowance := int(mem.Total / 1024 / 1024 / 3)
+		if cache := ctx.GlobalInt(utils.CacheFlag.Name); cache > allowance {
+			log.Warn("Sanitizing cache to Go's GC limits", "provided", cache, "updated", allowance)
+			ctx.GlobalSet(utils.CacheFlag.Name, strconv.Itoa(allowance))
+		}
+	}
+	// Ensure Go's GC ignores the database cache for trigger percentage
+	cache := ctx.GlobalInt(utils.CacheFlag.Name)
+	gogc := math.Max(20, math.Min(100, 100/(float64(cache)/1024)))
+
+	log.Debug("Sanitizing Go's GC trigger", "percent", int(gogc))
+	godebug.SetGCPercent(int(gogc))
 
 	// Start metrics export if enabled
 	utils.SetupMetrics(ctx)
@@ -319,7 +349,7 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 	debug.Memsize.Add("node", stack)
 
 	// Start up the node itself
-	utils.StartNode(ctx, stack)
+	utils.StartNode(stack)
 
 	// Unlock any account specifically requested
 	unlockAccounts(ctx, stack)
@@ -400,13 +430,21 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend) {
 		}
 		ethBackend, ok := backend.(*eth.EthAPIBackend)
 		if !ok {
-			utils.Fatalf("Ethereum service not running")
+			utils.Fatalf("Ethereum service not running: %v", err)
 		}
+
 		// Set the gas price to the limits from the CLI and start mining
 		gasprice := utils.GlobalBig(ctx, utils.MinerGasPriceFlag.Name)
+		if ctx.GlobalIsSet(utils.LegacyMinerGasPriceFlag.Name) && !ctx.GlobalIsSet(utils.MinerGasPriceFlag.Name) {
+			gasprice = utils.GlobalBig(ctx, utils.LegacyMinerGasPriceFlag.Name)
+		}
 		ethBackend.TxPool().SetGasPrice(gasprice)
 		// start mining
 		threads := ctx.GlobalInt(utils.MinerThreadsFlag.Name)
+		if ctx.GlobalIsSet(utils.LegacyMinerThreadsFlag.Name) && !ctx.GlobalIsSet(utils.MinerThreadsFlag.Name) {
+			threads = ctx.GlobalInt(utils.LegacyMinerThreadsFlag.Name)
+			log.Warn("The flag --minerthreads is deprecated and will be removed in the future, please use --miner.threads")
+		}
 		if err := ethBackend.StartMining(threads); err != nil {
 			utils.Fatalf("Failed to start mining: %v", err)
 		}

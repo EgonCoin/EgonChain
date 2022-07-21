@@ -30,7 +30,6 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/VictoriaMetrics/fastcache"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -46,12 +45,9 @@ const RecoveryIDOffset = 64
 // DigestLength sets the signature digest exact length
 const DigestLength = 32
 
-const hashCacheSize = 256 * 1024 * 1024
-
 var (
 	secp256k1N, _  = new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
 	secp256k1halfN = new(big.Int).Div(secp256k1N, big.NewInt(2))
-	hashCache      = fastcache.New(hashCacheSize)
 )
 
 var errInvalidPubkey = errors.New("invalid secp256k1 public key")
@@ -64,51 +60,10 @@ type KeccakState interface {
 	Read([]byte) (int, error)
 }
 
-// NewKeccakState creates a new KeccakState
-func NewKeccakState() KeccakState {
-	return sha3.NewLegacyKeccak256().(KeccakState)
-}
-
-// HashData hashes the provided data using the KeccakState and returns a 32 byte hash
-func HashData(kh KeccakState, data []byte) (h common.Hash) {
-	kh.Reset()
-	kh.Write(data)
-	kh.Read(h[:])
-	return h
-}
-
-// HashDataWithCache hashes the provided data using the KeccakState and returns a 32 byte hash;
-// when len(data) is belong to (0,96], cache will be used;
-// design for hashing common.Address, common.Hash and opSha3
-func HashDataWithCache(kh KeccakState, data []byte) (h common.Hash) {
-	l := len(data)
-	// 96 is set according to txs on egon mainnet
-	if l > 0 && l <= 96 {
-		if hash := hashCache.Get(nil, data); len(hash) == 32 {
-			return common.BytesToHash(hash)
-		}
-	}
-
-	d := kh
-	if d == nil {
-		d = NewKeccakState()
-	} else {
-		d.Reset()
-	}
-	d.Write(data)
-	d.Read(h[:])
-
-	if l > 0 && l <= 96 {
-		hashCache.Set(data, h[:])
-	}
-
-	return h
-}
-
 // Keccak256 calculates and returns the Keccak256 hash of the input data.
 func Keccak256(data ...[]byte) []byte {
 	b := make([]byte, 32)
-	d := NewKeccakState()
+	d := sha3.NewLegacyKeccak256().(KeccakState)
 	for _, b := range data {
 		d.Write(b)
 	}
@@ -119,7 +74,7 @@ func Keccak256(data ...[]byte) []byte {
 // Keccak256Hash calculates and returns the Keccak256 hash of the input data,
 // converting it to an internal Hash data structure.
 func Keccak256Hash(data ...[]byte) (h common.Hash) {
-	d := NewKeccakState()
+	d := sha3.NewLegacyKeccak256().(KeccakState)
 	for _, b := range data {
 		d.Write(b)
 	}
