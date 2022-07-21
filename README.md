@@ -65,6 +65,10 @@ EGON supports connecting to the official proof-of-staked-authority based test ne
 $ geth --testnet console
 ```
 
+### Validator Nodes
+
+Coming soon...
+
 ### Configuration
 
 As an alternative to passing the numerous flags to the `geth` binary, you can also pass a
